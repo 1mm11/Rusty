@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Survival Canvas Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        /* Інтерфейс (HUD) */
+        #ui-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none; /* Щоб кліки проходили крізь контейнер */
+        }
+
+        /* Статус бари */
+        .bars {
+            display: flex;
+            gap: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 10px;
+            pointer-events: auto;
+        }
+
+        .bar-container {
+            width: 150px;
+            height: 20px;
+            background: #444;
+            border: 2px solid #fff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s;
+        }
+
+        #hp-bar { background: #e74c3c; }
+        #hunger-bar { background: #f39c12; }
+        
+        .label {
+            position: absolute;
+            top: 0; left: 5px;
+            font-size: 12px;
+            color: white;
+            line-height: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        /* Інвентар та Крафт */
+        .controls {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .slot {
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #555;
+            border-radius: 8px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 10px;
+            text-align: center;
+            transition: all 0.1s;
+        }
+
+        .slot:hover { background: rgba(255, 255, 255, 0.1); }
+        .slot.active { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+        
+        .res-count { font-size: 14px; font-weight: bold; margin-top: 2px; }
+        
+        .notification {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        /* Підказки */
+        #tooltip {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="tooltip">
+        WASD: Рух | ЛКМ: Дія/Атака/Будівництво | E: Двері | 1-6: Вибір предмета
+    </div>
+
+    <div id="notification" class="notification">Потрібно більше ресурсів!</div>
+
+    <div id="ui-layer">
+        <div class="bars">
+            <div class="bar-container">
+                <div id="hp-bar" class="bar-fill"></div>
+                <span class="label">Здоров'я</span>
+            </div>
+            <div class="bar-container">
+                <div id="hunger-bar" class="bar-fill"></div>
+                <span class="label">Голод</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="slot" style="cursor: default; border-color: #888;">
+                <span>🌲 Дерево</span>
+                <span id="res-wood" class="res-count">0</span>
+            </div>
+            <div class="slot" style="cursor: default; border-color: #888;">
+                <span>🪨 Камінь</span>
+                <span id="res-stone" class="res-count">0</span>
+            </div>
+            <div class="slot" style="cursor: default; border-color: #888;">
+                <span>🍖 Їжа</span>
+                <span id="res-food" class="res-count">0</span>
+            </div>
+
+            <div class="slot" id="btn-hand" onclick="selectItem(0)">
+                <span>✋ Рука</span>
+                <span>(Збір)</span>
+            </div>
+            <div class="slot" id="btn-axe" onclick="selectItem(1)">
+                <span>🪓 Сокира</span>
+                <span>10🌲 10🪨</span>
+            </div>
+            <div class="slot" id="btn-pick" onclick="selectItem(2)">
+                <span>⛏️ Кирка</span>
+                <span>10🌲 10🪨</span>
+            </div>
+            <div class="slot" id="btn-wall" onclick="selectItem(3)">
+                <span>🧱 Стіна</span>
+                <span>20🌲</span>
+            </div>
+            <div class="slot" id="btn-door" onclick="selectItem(4)">
+                <span>🚪 Двері</span>
+                <span>30🌲</span>
+            </div>
+            <div class="slot" id="btn-fire" onclick="selectItem(5)">
+                <span>🔥 Костер</span>
+                <span>10🌲 10🪨</span>
+            </div>
+            <div class="slot" id="btn-eat" onclick="eatFood()">
+                <span>🍽️ З'їсти</span>
+                <span>Відн. Голод</span>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * НАЛАШТУВАННЯ ТА КОНСТАНТИ
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Розміри карти
+const MAP_WIDTH = 3000;
+const MAP_HEIGHT = 3000;
+const TILE_SIZE = 50; // Розмір сітки для будівництва
+
+// Камера
+let camera = { x: 0, y: 0 };
+
+// Введення
+const keys = {};
+let mouse = { x: 0, y: 0, worldX: 0, worldY: 0 };
+
+// Стан гри
+let gameTime = 0; // 0 to 2400 (Cycle)
+const DAY_LENGTH = 12000; // frames per day
+
+// Гравець
+const player = {
+    x: MAP_WIDTH / 2,
+    y: MAP_HEIGHT / 2,
+    radius: 15,
+    speed: 4,
+    hp: 100,
+    maxHp: 100,
+    hunger: 100,
+    maxHunger: 100,
+    inv: { wood: 0, stone: 0, food: 0 },
+    equipped: 0, // 0:Hand, 1:Axe, 2:Pickaxe, 3:Wall, 4:Door, 5:Campfire
+    tools: { axe: false, pickaxe: false }
+};
+
+// Списки об'єктів
+const entities = []; // Дерева, каміння, кущі
+const buildings = []; // Стіни, двері, костри
+const waterZones = [];
+
+// Константи типів
+const TYPE_TREE = 'tree';
+const TYPE_ROCK = 'rock';
+const TYPE_BUSH = 'bush';
+const TYPE_WALL = 'wall';
+const TYPE_DOOR = 'door';
+const TYPE_FIRE = 'fire';
+
+/**
+ * ІНІЦІАЛІЗАЦІЯ
+ */
+function init() {
+    resize();
+    window.addEventListener('resize', resize);
+    
+    // Генерація світу
+    generateWorld();
+
+    // Події введення
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if(e.key >= '1' && e.key <= '6') selectItem(parseInt(e.key) - 1); // 1-based to 0-based
+        if(e.code === 'KeyE') interact();
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousemove', e => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+    });
+    window.addEventListener('mousedown', onClick);
+
+    // Запуск циклу
+    requestAnimationFrame(loop);
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function generateWorld() {
+    // 1. Вода (кілька великих озер)
+    for(let i=0; i<8; i++) {
+        waterZones.push({
+            x: Math.random() * MAP_WIDTH,
+            y: Math.random() * MAP_HEIGHT,
+            radius: 100 + Math.random() * 200
+        });
+    }
+
+    // 2. Ресурси
+    for(let i=0; i<400; i++) {
+        let type = Math.random();
+        let ent = {
+            id: Math.random(),
+            x: Math.random() * MAP_WIDTH,
+            y: Math.random() * MAP_HEIGHT,
+            hp: 10,
+            maxHp: 10
+        };
+
+        if(type < 0.5) { // Дерево
+            ent.type = TYPE_TREE;
+            ent.radius = 20;
+            ent.color = '#2ecc71';
+            ent.stroke = '#1e8449';
+            ent.hp = 15;
+        } else if (type < 0.8) { // Камінь
+            ent.type = TYPE_ROCK;
+            ent.radius = 18;
+            ent.color = '#95a5a6';
+            ent.stroke = '#7f8c8d';
+            ent.hp = 20;
+        } else { // Кущ
+            ent.type = TYPE_BUSH;
+            ent.radius = 12;
+            ent.color = '#82e0aa';
+            ent.stroke = 'none';
+            ent.hp = 5;
+        }
+
+        // Не спавнити в воді або на спавні
+        if (!isInWater(ent.x, ent.y, ent.radius) && dist(ent.x, ent.y, player.x, player.y) > 200) {
+            entities.push(ent);
+        }
+    }
+}
+
+/**
+ * ГОЛОВНИЙ ЦИКЛ (UPDATE & DRAW)
+ */
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+function update() {
+    // 1. День/Ніч
+    gameTime = (gameTime + 1) % DAY_LENGTH;
+    
+    // 2. Голод
+    if (gameTime % 200 === 0) {
+        player.hunger = Math.max(0, player.hunger - 1);
+        if(player.hunger === 0) player.hp = Math.max(0, player.hp - 2);
+    }
+    updateUI();
+
+    // 3. Рух Гравця
+    let dx = 0;
+    let dy = 0;
+    if (keys['KeyW']) dy = -player.speed;
+    if (keys['KeyS']) dy = player.speed;
+    if (keys['KeyA']) dx = -player.speed;
+    if (keys['KeyD']) dx = player.speed;
+
+    // Нормалізація діагонального руху
+    if (dx !== 0 && dy !== 0) {
+        dx *= 0.707;
+        dy *= 0.707;
+    }
+
+    // Передбачення позиції для колізій
+    let nextX = player.x + dx;
+    let nextY = player.y + dy;
+
+    // Перевірка колізій
+    if (nextX > 0 && nextX < MAP_WIDTH && !checkCollision(nextX, player.y)) {
+        player.x = nextX;
+    }
+    if (nextY > 0 && nextY < MAP_HEIGHT && !checkCollision(player.x, nextY)) {
+        player.y = nextY;
+    }
+
+    // 4. Оновлення камери
+    camera.x = player.x - canvas.width / 2;
+    camera.y = player.y - canvas.height / 2;
+
+    // 5. Оновлення координат миші у світі
+    mouse.worldX = mouse.x + camera.x;
+    mouse.worldY = mouse.y + camera.y;
+}
+
+/**
+ * РЕНДЕРИНГ
+ */
+function draw() {
+    // Фон (Земля)
+    ctx.fillStyle = '#d4ac6e'; // Пісочний/Земляний колір
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    // Зсув камери
+    ctx.translate(-camera.x, -camera.y);
+
+    // Малюємо сітку (ледь видно) для краси
+    drawGrid();
+
+    // 1. Вода
+    waterZones.forEach(w => {
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#3498db';
+        ctx.fill();
+    });
+
+    // 2. Будівлі (Стіни, Костри)
+    buildings.forEach(b => {
+        if(b.type === TYPE_WALL) {
+            ctx.fillStyle = '#8d6e63';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(b.x, b.y, b.w, b.h);
+        } else if (b.type === TYPE_DOOR) {
+            ctx.fillStyle = b.isOpen ? 'rgba(141, 110, 99, 0.3)' : '#a1887f';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+            ctx.strokeStyle = '#3e2723';
+            ctx.strokeRect(b.x, b.y, b.w, b.h);
+        } else if (b.type === TYPE_FIRE) {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 10, 0, Math.PI*2);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fill();
+            // Анімація вогню
+            ctx.beginPath();
+            ctx.arc(b.x + (Math.random()-0.5)*5, b.y + (Math.random()-0.5)*5, 7, 0, Math.PI*2);
+            ctx.fillStyle = '#f1c40f';
+            ctx.fill();
+        }
+    });
+
+    // 3. Ресурси (Дерева, Камені)
+    entities.forEach(e => {
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+        ctx.fillStyle = e.color;
+        ctx.fill();
+        if(e.stroke !== 'none') {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = e.stroke;
+            ctx.stroke();
+        }
+        // Ефект пошкодження
+        if(e.hp < e.maxHp) {
+            ctx.fillStyle = 'red';
+            ctx.font = '12px Arial';
+            ctx.fillText(e.hp, e.x - 5, e.y);
+        }
+    });
+
+    // 4. Гравець
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Руки
+    ctx.beginPath();
+    ctx.arc(player.x + 12, player.y + 5, 6, 0, Math.PI * 2); // Права
+    ctx.arc(player.x - 12, player.y + 5, 6, 0, Math.PI * 2); // Ліва
+    ctx.fillStyle = '#e0e0e0';
+    ctx.fill();
+    ctx.stroke();
+
+    // 5. Привид будівництва (Ghost)
+    if(player.equipped >= 3) {
+        let ghostX = Math.floor(mouse.worldX / TILE_SIZE) * TILE_SIZE;
+        let ghostY = Math.floor(mouse.worldY / TILE_SIZE) * TILE_SIZE;
+        let distToPlayer = dist(player.x, player.y, ghostX + TILE_SIZE/2, ghostY + TILE_SIZE/2);
+        
+        let valid = distToPlayer < 150 && !checkCollisionRect(ghostX, ghostY, TILE_SIZE, TILE_SIZE);
+        
+        ctx.fillStyle = valid ? 'rgba(46, 204, 113, 0.5)' : 'rgba(231, 76, 60, 0.5)';
+        
+        // Для костра малюємо коло, для стін квадрат
+        if (player.equipped === 5) {
+             ctx.beginPath();
+             ctx.arc(ghostX + TILE_SIZE/2, ghostY + TILE_SIZE/2, 10, 0, Math.PI*2);
+             ctx.fill();
+        } else {
+             ctx.fillRect(ghostX, ghostY, TILE_SIZE, TILE_SIZE);
+        }
+    }
+
+    ctx.restore();
+
+    // 6. Освітлення (Day/Night)
+    drawLighting();
+}
+
+function drawGrid() {
+    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    // Оптимізація: малюємо тільки в полі зору
+    let startX = Math.floor(camera.x / TILE_SIZE) * TILE_SIZE;
+    let startY = Math.floor(camera.y / TILE_SIZE) * TILE_SIZE;
+    
+    for(let x = startX; x < startX + canvas.width + TILE_SIZE; x += TILE_SIZE) {
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, startY + canvas.height + TILE_SIZE);
+    }
+    for(let y = startY; y < startY + canvas.height + TILE_SIZE; y += TILE_SIZE) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(startX + canvas.width + TILE_SIZE, y);
+    }
+    ctx.stroke();
+}
+
+function drawLighting() {
+    // Розрахунок темряви (синусоїда)
+    // 0 = Ніч, 1 = День.
+    let cycle = Math.sin((gameTime / DAY_LENGTH) * Math.PI * 2); 
+    // Нам треба: Ніч=0.9 opacity, День=0 opacity
+    let darkness = 0;
+    if (cycle < 0) { // Ніч
+        darkness = Math.abs(cycle) * 0.95; 
+    }
+
+    if (darkness > 0.05) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${darkness})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // "Вирізаємо" світло
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+
+        // Світло навколо гравця
+        let grad = ctx.createRadialGradient(
+            player.x - camera.x, player.y - camera.y, 10,
+            player.x - camera.x, player.y - camera.y, 150
+        );
+        grad.addColorStop(0, 'rgba(0,0,0,1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(player.x - camera.x, player.y - camera.y, 150, 0, Math.PI*2);
+        ctx.fill();
+
+        // Світло від кострів
+        buildings.forEach(b => {
+            if(b.type === TYPE_FIRE) {
+                 // Тремерення світла
+                 let flick = Math.random() * 5;
+                 let screenX = b.x - camera.x;
+                 let screenY = b.y - camera.y;
+                 if(screenX > -100 && screenX < canvas.width+100 && screenY > -100 && screenY < canvas.height+100) {
+                     let fireGrad = ctx.createRadialGradient(screenX, screenY, 10, screenX, screenY, 120 + flick);
+                     fireGrad.addColorStop(0, 'rgba(0,0,0,1)');
+                     fireGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                     ctx.fillStyle = fireGrad;
+                     ctx.beginPath();
+                     ctx.arc(screenX, screenY, 120 + flick, 0, Math.PI*2);
+                     ctx.fill();
+                 }
+            }
+        });
+
+        ctx.restore();
+    }
+    
+    // Відображення годинника (текст)
+    ctx.fillStyle = 'white';
+    ctx.font = '20px monospace';
+    ctx.fillText(darkness > 0.5 ? "🌙 Ніч" : "☀️ День", 20, 40);
+}
+
+/**
+ * ЛОГІКА
+ */
+
+// Колізії
+function checkCollision(x, y) {
+    // Вода
+    for(let w of waterZones) {
+        if(dist(x, y, w.x, w.y) < w.radius) return true;
+    }
+    // Дерева і Камені (сутності)
+    for(let e of entities) {
+        if(dist(x, y, e.x, e.y) < e.radius + player.radius) return true;
+    }
+    // Стіни
+    for(let b of buildings) {
+        if((b.type === TYPE_WALL || (b.type === TYPE_DOOR && !b.isOpen)) &&
+           x + player.radius > b.x && x - player.radius < b.x + b.w &&
+           y + player.radius > b.y && y - player.radius < b.y + b.h) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Перевірка чи вільне місце для будівництва
+function checkCollisionRect(x, y, w, h) {
+    // Перевірка кутів
+    if (checkCollision(x+1, y+1)) return true;
+    if (checkCollision(x+w-1, y+h-1)) return true;
+    
+    // Перевірка чи є вже будівля тут
+    for(let b of buildings) {
+        if(b.x === x && b.y === y) return true;
+    }
+    return false;
+}
+
+function isInWater(x, y, r) {
+    for(let w of waterZones) {
+        if(dist(x, y, w.x, w.y) < w.radius + r) return true;
+    }
+    return false;
+}
+
+// Клік миші
+function onClick(e) {
+    // Конвертація в координати світу
+    let clickX = e.clientX + camera.x;
+    let clickY = e.clientY + camera.y;
+
+    // Режим будівництва
+    if (player.equipped >= 3) {
+        buildStructure(clickX, clickY);
+        return;
+    }
+
+    // Режим атаки / збору
+    // Шукаємо найближчу ціль під мишкою
+    let target = null;
+    for(let ent of entities) {
+        if(dist(clickX, clickY, ent.x, ent.y) < ent.radius + 10) {
+            target = ent;
+            break;
+        }
+    }
+
+    if (target) {
+        // Перевірка дистанції
+        if(dist(player.x, player.y, target.x, target.y) > 100) {
+            showNotify("Надто далеко!");
+            return;
+        }
+        
+        // Удар
+        harvest(target);
+    }
+}
+
+function interact() {
+    // Дія на 'E' (відкрити двері)
+    let px = player.x;
+    let py = player.y;
+    buildings.forEach(b => {
+        if(b.type === TYPE_DOOR) {
+            let centerBx = b.x + b.w/2;
+            let centerBy = b.y + b.h/2;
+            if(dist(px, py, centerBx, centerBy) < 60) {
+                b.isOpen = !b.isOpen;
+            }
+        }
+    });
+}
+
+function harvest(target) {
+    let damage = 1;
+    // Бонуси інструментів
+    if(target.type === TYPE_TREE && player.equipped === 1) damage = 5; // Axe vs Tree
+    if(target.type === TYPE_ROCK && player.equipped === 2) damage = 5; // Pick vs Rock
+    if(target.type === TYPE_BUSH) damage = 5; // Instakill bush
+
+    target.hp -= damage;
+
+    // Анімація "тряски"
+    target.x += (Math.random()-0.5)*5;
+
+    if(target.hp <= 0) {
+        // Видалення
+        entities.splice(entities.indexOf(target), 1);
+        // Лут
+        if(target.type === TYPE_TREE) { player.inv.wood += 5; showNotify("+5 Дерева"); }
+        if(target.type === TYPE_ROCK) { player.inv.stone += 5; showNotify("+5 Каменю"); }
+        if(target.type === TYPE_BUSH) { player.inv.food += 2; showNotify("+2 Ягоди"); }
+    }
+    updateUI();
+}
+
+function buildStructure(mx, my) {
+    let gx = Math.floor(mx / TILE_SIZE) * TILE_SIZE;
+    let gy = Math.floor(my / TILE_SIZE) * TILE_SIZE;
+
+    // Перевірка дистанції
+    if (dist(player.x, player.y, gx + TILE_SIZE/2, gy + TILE_SIZE/2) > 150) {
+        showNotify("Надто далеко!");
+        return;
+    }
+
+    // Перевірка чи вільно
+    if (checkCollisionRect(gx, gy, TILE_SIZE, TILE_SIZE)) {
+        showNotify("Тут не можна будувати!");
+        return;
+    }
+
+    let type = null;
+    let cost = {};
+
+    if(player.equipped === 3) { // Wall
+        type = TYPE_WALL;
+        cost = { wood: 20 };
+    } else if (player.equipped === 4) { // Door
+        type = TYPE_DOOR;
+        cost = { wood: 30 };
+    } else if (player.equipped === 5) { // Fire
+        type = TYPE_FIRE;
+        cost = { wood: 10, stone: 10 };
+    }
+
+    // Перевірка ресурсів
+    if(player.inv.wood >= (cost.wood || 0) && player.inv.stone >= (cost.stone || 0)) {
+        player.inv.wood -= (cost.wood || 0);
+        player.inv.stone -= (cost.stone || 0);
+        
+        let building = { x: gx, y: gy, w: TILE_SIZE, h: TILE_SIZE, type: type };
+        if(type === TYPE_DOOR) building.isOpen = false;
+        
+        buildings.push(building);
+        showNotify("Збудовано!");
+        updateUI();
+    } else {
+        showNotify("Не вистачає ресурсів!");
+    }
+}
+
+/**
+ * ІНТЕРФЕЙС ТА УТИЛІТИ
+ */
+function selectItem(idx) {
+    // Логіка крафту інструментів
+    if (idx === 1 && !player.tools.axe) { // Craft Axe
+        if(player.inv.wood >= 10 && player.inv.stone >= 10) {
+            player.inv.wood -= 10; player.inv.stone -= 10;
+            player.tools.axe = true;
+            document.querySelector('#btn-axe span:last-child').innerText = "(Екіп)";
+            showNotify("Сокиру створено!");
+            updateUI();
+        } else {
+            showNotify("Треба 10 дерева і 10 каменю");
+            return;
+        }
+    }
+    if (idx === 2 && !player.tools.pickaxe) { // Craft Pickaxe
+        if(player.inv.wood >= 10 && player.inv.stone >= 10) {
+            player.inv.wood -= 10; player.inv.stone -= 10;
+            player.tools.pickaxe = true;
+            document.querySelector('#btn-pick span:last-child').innerText = "(Екіп)";
+            showNotify("Кирку створено!");
+            updateUI();
+        } else {
+            showNotify("Треба 10 дерева і 10 каменю");
+            return;
+        }
+    }
+
+    player.equipped = idx;
+    
+    // UI оновлення активного слоту
+    document.querySelectorAll('.slot').forEach((el, i) => {
+        // перші 3 слоти - це ресурси, пропускаємо їх в циклі кнопок
+        if(i >= 3) {
+            if (i - 3 === idx) el.classList.add('active');
+            else el.classList.remove('active');
+        }
+    });
+}
+
+function eatFood() {
+    if(player.inv.food > 0 && player.hunger < 100) {
+        player.inv.food--;
+        player.hunger = Math.min(100, player.hunger + 20);
+        player.hp = Math.min(100, player.hp + 5);
+        showNotify("Ням-ням!");
+        updateUI();
+    } else if (player.inv.food === 0) {
+        showNotify("Немає їжі!");
+    } else {
+        showNotify("Я не голодний.");
+    }
+}
+
+function updateUI() {
+    document.getElementById('hp-bar').style.width = player.hp + '%';
+    document.getElementById('hunger-bar').style.width = player.hunger + '%';
+    
+    document.getElementById('res-wood').innerText = player.inv.wood;
+    document.getElementById('res-stone').innerText = player.inv.stone;
+    document.getElementById('res-food').innerText = player.inv.food;
+}
+
+function showNotify(msg) {
+    let el = document.getElementById('notification');
+    el.innerText = msg;
+    el.style.opacity = 1;
+    setTimeout(() => { el.style.opacity = 0; }, 1500);
+}
+
+function dist(x1, y1, x2, y2) {
+    return Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+}
+
+// Старт
+init();
+
+</script>
+</body>
+</html>
