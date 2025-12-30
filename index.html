@@ -2,102 +2,82 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<title>Rust 2D: Global Update</title>
+<title>Rust 2D: High Quality Update</title>
 <style>
     body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', sans-serif; user-select: none; }
     canvas { display: block; }
 
     /* UI Layers */
-    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
     .pointer { pointer-events: auto; }
 
     /* HUD */
     #hud { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; }
-    .bar { width: 220px; height: 20px; background: rgba(0,0,0,0.6); border: 2px solid #555; border-radius: 4px; overflow: hidden; position: relative; }
-    .fill { height: 100%; transition: width 0.2s; }
-    .bar-text { position: absolute; right: 5px; top: 0; font-size: 12px; color: white; font-weight: bold; line-height: 20px; text-shadow: 1px 1px 0 #000; }
+    .bar { width: 220px; height: 24px; background: rgba(0,0,0,0.8); border: 1px solid #555; border-radius: 4px; overflow: hidden; position: relative; box-shadow: 0 2px 5px black; }
+    .fill { height: 100%; transition: width 0.2s; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3); }
+    .bar-text { position: absolute; right: 8px; top: 0; font-size: 14px; color: white; font-weight: bold; line-height: 24px; text-shadow: 1px 1px 2px #000; }
 
     /* Hotbar */
-    #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; }
+    #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 5px; background: rgba(0,0,0,0.3); border-radius: 10px; }
     .slot { 
-        width: 60px; height: 60px; background: rgba(40,40,40,0.85); border: 2px solid #555; 
+        width: 64px; height: 64px; background: rgba(30,30,30,0.9); border: 2px solid #555; 
         color: white; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        font-size: 10px; cursor: pointer; position: relative; transition: 0.1s;
+        font-size: 10px; cursor: pointer; position: relative; transition: 0.1s; border-radius: 4px;
     }
-    .slot:hover { background: rgba(60,60,60,0.9); }
-    .slot.active { border-color: #76ff03; box-shadow: 0 0 10px rgba(118, 255, 3, 0.3); transform: translateY(-5px); }
-    .slot-icon { font-size: 24px; }
-    .slot-count { position: absolute; bottom: 2px; right: 4px; font-weight: bold; font-size: 12px; color: #ddd; }
+    .slot:hover { background: rgba(50,50,50,0.9); border-color: #888; }
+    .slot.active { border-color: #76ff03; box-shadow: 0 0 15px rgba(118, 255, 3, 0.4); transform: translateY(-2px); }
+    .slot-icon { font-size: 32px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+    .slot-count { position: absolute; bottom: 2px; right: 5px; font-weight: bold; font-size: 14px; color: #ddd; text-shadow: 1px 1px 0 #000; }
 
-    /* Menus (Inventory, Craft, Main) */
+    /* Menus */
     .menu-overlay { 
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); 
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); 
         display: none; justify-content: center; align-items: center; z-index: 50; pointer-events: auto;
     }
     .panel { 
-        background: #2d2d2d; border: 1px solid #555; padding: 20px; color: #eee; border-radius: 5px; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: flex; gap: 20px; max-height: 80vh;
+        background: #282828; border: 1px solid #444; padding: 25px; color: #eee; border-radius: 8px; 
+        box-shadow: 0 20px 50px rgba(0,0,0,0.9); display: flex; gap: 30px; 
     }
     
-    /* Crafting Tabs */
-    .tabs { display: flex; gap: 5px; margin-bottom: 10px; }
-    .tab { padding: 5px 10px; background: #444; cursor: pointer; border-radius: 3px; font-size: 12px; }
-    .tab.active-tab { background: #76ff03; color: #000; font-weight: bold; }
-    
-    .scroll-list { overflow-y: auto; max-height: 400px; padding-right: 5px; width: 300px; }
+    /* Inventory Grid */
+    .inv-container { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; }
+
+    /* Crafting */
+    .craft-list { overflow-y: auto; max-height: 400px; padding-right: 5px; width: 320px; }
     .craft-row { 
         display: flex; align-items: center; justify-content: space-between; background: #383838; 
-        margin-bottom: 5px; padding: 8px; cursor: pointer; border: 1px solid #444; 
+        margin-bottom: 6px; padding: 10px; cursor: pointer; border: 1px solid #444; border-radius: 4px;
+        transition: background 0.2s;
     }
-    .craft-row:hover { background: #444; border-color: #888; }
-    .locked { opacity: 0.5; cursor: not-allowed; }
+    .craft-row:hover { background: #4a4a4a; border-color: #999; }
+    .craft-row.locked { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 
-    /* Building Radial Menu (Simulated) */
-    #build-menu {
-        position: absolute; display: none; background: rgba(20,20,20,0.95);
-        border: 2px solid #76ff03; border-radius: 50%; width: 200px; height: 200px;
-        z-index: 20; pointer-events: auto;
+    /* Dragging Ghost Item */
+    #drag-ghost {
+        position: fixed; width: 64px; height: 64px; pointer-events: none; z-index: 999;
+        display: none; opacity: 0.8; transform: translate(-50%, -50%);
     }
-    .build-opt {
-        position: absolute; width: 50px; height: 50px; background: #444; border-radius: 50%;
-        display: flex; justify-content: center; align-items: center; font-size: 20px; cursor: pointer;
-        border: 2px solid #555; color: white; box-shadow: 0 0 5px black;
-    }
-    .build-opt:hover { background: #76ff03; color: black; border-color: white; }
-    /* Positioning options in a circle */
-    .b-center { top: 75px; left: 75px; background: #333; font-size: 12px; } /* Cancel */
-    .b-top { top: 10px; left: 75px; } /* Foundation */
-    .b-right { top: 75px; left: 140px; } /* Wall */
-    .b-bottom { top: 140px; left: 75px; } /* DoorFrame */
-    .b-left { top: 75px; left: 10px; } /* Triangle */
-    .b-tr { top: 30px; left: 120px; } /* Roof */
-
-    /* Start Screen */
-    #main-menu { display: flex; flex-direction: column; gap: 15px; text-align: center; }
-    .btn { padding: 15px 40px; font-size: 18px; background: #76ff03; border: none; cursor: pointer; font-weight: bold; color: #111; text-transform: uppercase; letter-spacing: 1px; }
-    .btn:hover { background: #64dd17; transform: scale(1.05); }
-    .btn-sec { background: #555; color: white; }
-    .btn-sec:hover { background: #777; }
+    #drag-ghost .slot { border-color: #76ff03; background: #333; }
 
     /* Notifications */
     #notify-area { position: absolute; bottom: 120px; right: 20px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
-    .note { background: rgba(0,0,0,0.8); color: #fff; padding: 5px 12px; border-right: 4px solid #76ff03; font-size: 14px; animation: fadeOut 4s forwards; }
-    @keyframes fadeOut { 0% {opacity:1;} 80% {opacity:1;} 100% {opacity:0;} }
+    .note { background: rgba(20,20,20,0.9); color: #fff; padding: 8px 15px; border-right: 4px solid #76ff03; font-size: 16px; border-radius: 4px 0 0 4px; animation: fadeOut 4s forwards; box-shadow: 0 2px 5px black; }
+    @keyframes fadeOut { 0% {opacity:1; transform: translateX(0);} 80% {opacity:1;} 100% {opacity:0; transform: translateX(20px);} }
 </style>
 </head>
 <body>
 
 <canvas id="cvs"></canvas>
 
+<div id="drag-ghost"></div>
+
 <div id="start-screen" class="menu-overlay" style="display: flex;">
-    <div id="main-menu">
-        <h1 style="color: #76ff03; font-size: 70px; margin: 0; text-shadow: 0 0 20px #76ff03;">RUST 2D</h1>
-        <p style="color: #aaa;">SURVIVAL • CRAFT • RAID</p>
-        <button class="btn" onclick="initGame(false)">ПРОДОЛЖИТЬ</button>
-        <button class="btn btn-sec" onclick="initGame(true)">НОВАЯ ИГРА</button>
-        <div style="font-size: 12px; color: #666; margin-top: 20px;">
-            WASD - Рух | E - Інвентар | ПКМ (Build Plan) - Меню будови<br>
-            ЛКМ - Дія | G - Карта
+    <div style="text-align: center;">
+        <h1 style="color: #76ff03; font-size: 80px; margin: 0; text-shadow: 0 0 30px rgba(118, 255, 3, 0.5);">RUST 2D</h1>
+        <p style="color: #bbb; font-size: 20px; letter-spacing: 2px;">SURVIVAL EVOLVED</p>
+        <div style="margin-top: 40px; display: flex; gap: 20px; justify-content: center;">
+            <button onclick="initGame(false)" style="padding: 15px 40px; font-size: 20px; background: #76ff03; border: none; font-weight: bold; cursor: pointer; border-radius: 5px;">ПРОДОЛЖИТЬ</button>
+            <button onclick="initGame(true)" style="padding: 15px 40px; font-size: 20px; background: #444; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 5px;">НОВАЯ ИГРА</button>
         </div>
     </div>
 </div>
@@ -106,8 +86,8 @@
     <div id="notify-area"></div>
     
     <div id="hud">
-        <div class="bar"><div class="fill" id="hp-bar" style="background:#d32f2f; width:100%"></div><span class="bar-text">HP</span></div>
-        <div class="bar"><div class="fill" id="food-bar" style="background:#f57c00; width:100%"></div><span class="bar-text">FOOD</span></div>
+        <div class="bar"><div class="fill" id="hp-bar" style="background:#e53935; width:100%"></div><span class="bar-text">HP</span></div>
+        <div class="bar"><div class="fill" id="food-bar" style="background:#fb8c00; width:100%"></div><span class="bar-text">HUNGER</span></div>
     </div>
     
     <div id="hotbar" class="pointer"></div>
@@ -115,236 +95,122 @@
 
 <div id="game-menu" class="menu-overlay">
     <div class="panel">
-        <div style="width: 320px;">
-            <h3 style="margin-top:0">Рюкзак</h3>
-            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;" id="inv-grid"></div>
+        <div>
+            <h2 style="margin-top:0; color:#ddd; border-bottom: 2px solid #76ff03; padding-bottom: 10px;">INVENTORY</h2>
+            <div class="inv-container" id="inv-grid"></div>
         </div>
-        <div style="width: 350px; border-left: 1px solid #444; padding-left: 20px;">
-            <h3 style="margin-top:0">Крафт</h3>
-            <div class="tabs" id="craft-tabs"></div>
-            <div class="scroll-list" id="craft-list"></div>
-            <div id="craft-req" style="margin-top: 10px; font-size: 12px; color: #888;"></div>
+        <div style="border-left: 1px solid #444; padding-left: 30px;">
+            <h2 style="margin-top:0; color:#ddd; border-bottom: 2px solid #76ff03; padding-bottom: 10px;">CRAFTING</h2>
+            <div class="craft-list" id="craft-list"></div>
         </div>
     </div>
 </div>
 
-<div id="build-menu">
-    <div class="build-opt b-top" title="Фундамент" onclick="setBuildShape('foundation')">⬛</div>
-    <div class="build-opt b-left" title="Трикутник" onclick="setBuildShape('triangle')">🔺</div>
-    <div class="build-opt b-right" title="Стіна" onclick="setBuildShape('wall')">🧱</div>
-    <div class="build-opt b-bottom" title="Двері" onclick="setBuildShape('doorframe')">🚪</div>
-    <div class="build-opt b-tr" title="Дах" onclick="setBuildShape('roof')">🏠</div>
-    <div class="build-opt b-center" onclick="closeBuildMenu()">❌</div>
-</div>
-
 <script>
 /**
- * --- CONFIG & DB ---
+ * --- CONFIG ---
  */
 const cvs = document.getElementById('cvs');
 const ctx = cvs.getContext('2d');
-const W_MAP = 4000;
-const H_MAP = 4000;
+const W_MAP = 3000;
+const H_MAP = 3000;
+const X_WATER = 400; // Граница воды
 
-// Items
+// Item DB with Enhanced Icons
 const ITEMS = {
     rock: { name: 'Камінь', icon: '🪨', type: 'tool', dmg: 10, bonus: 'rock' },
     wood: { name: 'Дерево', icon: '🌲', type: 'res' },
-    stone: { name: 'Руда', icon: '⚪', type: 'res' },
-    iron_ore: { name: 'Залізна руда', icon: '🌑', type: 'res' },
+    stone: { name: 'Руда', icon: '🌑', type: 'res' },
+    iron_ore: { name: 'Залізна руда', icon: '🪨', type: 'res' }, // Custom render
     sulfur_ore: { name: 'Сірка', icon: '🟡', type: 'res' },
     metal_frags: { name: 'Залізо', icon: '🔩', type: 'res' },
-    hqm: { name: 'МВК', icon: '⬜', type: 'res' },
     scrap: { name: 'Скрап', icon: '⚙️', type: 'comp' },
     cloth: { name: 'Тканина', icon: '🧶', type: 'comp' },
-    fat: { name: 'Жир', icon: '🥩', type: 'comp' },
     leather: { name: 'Кожа', icon: '🥓', type: 'comp' },
-    bone: { name: 'Кістки', icon: '🦴', type: 'comp' },
-    
-    // Tools
     axe: { name: 'Сокира', icon: '🪓', type: 'tool', dmg: 25, bonus: 'tree' },
     pickaxe: { name: 'Кирка', icon: '⛏️', type: 'tool', dmg: 25, bonus: 'rock' },
-    hammer: { name: 'Киянка', icon: '🔨', type: 'tool', dmg: 5, action: 'upgrade' },
     plan: { name: 'Plan', icon: '📄', type: 'build' },
+    hammer: { name: 'Киянка', icon: '🔨', type: 'tool' },
+    bow: { name: 'Лук', icon: '🏹', type: 'weapon', dmg: 30 },
+    food: { name: 'Їжа', icon: '🥫', type: 'food', val: 30 },
     
-    // Weapons
-    bow: { name: 'Лук', icon: '🏹', type: 'weapon', dmg: 30, range: 300 },
-    ak: { name: 'AK-47', icon: '🔫', type: 'weapon', dmg: 15, range: 500, auto: true },
-    
-    // Deploy
-    box: { name: 'Ящик', icon: '📦', type: 'deploy', w: 40, h: 40, hp: 100 },
-    furnace: { name: 'Піч', icon: '🔥', type: 'deploy', w: 40, h: 40, hp: 200, isFurnace: true },
-    wb1: { name: 'Верстак 1', icon: '🛠️', type: 'deploy', w: 60, h: 60, hp: 300, wb: 1 },
-    wb2: { name: 'Верстак 2', icon: '🗜️', type: 'deploy', w: 60, h: 60, hp: 500, wb: 2 },
-    wb3: { name: 'Верстак 3', icon: '🦾', type: 'deploy', w: 60, h: 60, hp: 1000, wb: 3 },
-    
-    // Build parts (Virtual items)
-    door_wood: { name: 'Двері (Дер)', icon: '🚪', type: 'deploy_door', hp: 200 },
-    door_metal: { name: 'Двері (Зал)', icon: '🚪', type: 'deploy_door', hp: 500 },
-    
-    food: { name: 'Їжа', icon: '🥫', type: 'food', val: 30 }
+    // Virtual
+    box: { name: 'Ящик', icon: '📦', type: 'deploy' },
+    furnace: { name: 'Піч', icon: '🔥', type: 'deploy' },
+    door: { name: 'Двері', icon: '🚪', type: 'deploy_door' }
 };
 
-// Crafting Recipes
 const RECIPES = [
-    // Resources / Basics
-    { id: 'axe', cat: 'tool', cost: { wood: 100, stone: 50 } },
-    { id: 'pickaxe', cat: 'tool', cost: { wood: 100, stone: 50 } },
-    { id: 'hammer', cat: 'tool', cost: { wood: 100 } },
-    { id: 'plan', cat: 'tool', cost: { wood: 20 } },
-    { id: 'metal_frags', cat: 'res', name: 'Переплавка (Піч)', cost: { iron_ore: 1, wood: 5 }, reqStation: 'furnace', out: 1 },
-    
-    // Stations
-    { id: 'furnace', cat: 'build', cost: { stone: 200, wood: 100, fat: 30 } },
-    { id: 'wb1', cat: 'build', cost: { wood: 500, scrap: 50 } },
-    { id: 'wb2', cat: 'build', cost: { wood: 500, metal_frags: 100, scrap: 250 }, wb: 1 },
-    { id: 'wb3', cat: 'build', cost: { metal_frags: 1000, hqm: 50, scrap: 1250 }, wb: 2 },
-    
-    // Construction
-    { id: 'door_wood', cat: 'build', cost: { wood: 300 } },
-    { id: 'door_metal', cat: 'build', cost: { metal_frags: 150, wood: 50 }, wb: 1 },
-    { id: 'box', cat: 'build', cost: { wood: 100 } },
-    
-    // Weapon / Attire
-    { id: 'bow', cat: 'weapon', cost: { wood: 200, cloth: 50 } },
-    { id: 'ak', cat: 'weapon', cost: { metal_frags: 400, wood: 200, scrap: 100 }, wb: 2 } // Simplified
+    { id: 'axe', cost: { wood: 100, stone: 50 } },
+    { id: 'pickaxe', cost: { wood: 100, stone: 50 } },
+    { id: 'hammer', cost: { wood: 100 } },
+    { id: 'plan', cost: { wood: 20 } },
+    { id: 'box', cost: { wood: 100 } },
+    { id: 'furnace', cost: { stone: 200, wood: 100 } },
+    { id: 'bow', cost: { wood: 200, cloth: 50 } },
+    { id: 'metal_frags', name:'Smelt Iron', cost: { iron_ore: 1, wood: 5 }, out: 1, station:'furnace' }
 ];
 
-const CATEGORIES = { tool: 'Інструменти', build: 'Будівництво', weapon: 'Зброя', res: 'Ресурси' };
-
-// Global State
-let player = { x: 1000, y: 1000, hp: 100, food: 100, angle: 0, inv: [], belt: [], beltIdx: 0 };
-let world = { entities: [], static: [], roofs: [], roadPath: [] };
+// State
+let player = { x: 800, y: 1500, hp: 100, food: 100, angle: 0, inv: Array(30).fill(null), belt: Array(6).fill(null), beltIdx: 0 };
+let world = { entities: [], static: [], roadPath: [] };
 let cam = { x:0, y:0 };
 let input = { w:0, a:0, s:0, d:0, mx:0, my:0 };
 let gameLoopId;
-let isMenuOpen = false;
-let buildShape = 'foundation'; // foundation, wall, etc.
+let gameTime = 0; // Для анимации воды
+
+// Drag & Drop State
+let dragObj = { item: null, fromIdx: -1, fromType: null, active: false };
 
 /**
- * --- CORE SYSTEMS ---
+ * --- INIT ---
  */
 function initGame(newGame) {
     document.getElementById('start-screen').style.display = 'none';
     resize();
+    if(newGame) generateWorld(); 
+    else loadGame();
     
-    if(!newGame && localStorage.getItem('rust2d_save')) {
-        loadGame();
-    } else {
-        generateWorld();
-        // Starter Kit
-        player.belt = Array(6).fill(null);
-        player.inv = Array(24).fill(null);
-        addItem('rock', 1);
-        addItem('food', 3);
-    }
-    
+    // Give starter kit if empty
+    if(!player.belt[0]) addItem('rock', 1);
+
+    updateUI();
     startGameLoop();
-    setInterval(saveGame, 30000); // Autosave 30s
 }
 
 function generateWorld() {
     world.entities = [];
     world.static = [];
-    world.roofs = [];
-    world.roadPath = [];
-
-    // 1. Generate Curved Road (Sine Wave + Noise approach)
-    let roadX = 2000;
-    for(let y=0; y<H_MAP; y+=20) {
-        roadX += Math.sin(y * 0.002) * 5 + (Math.random()-0.5)*2; 
-        // Clamp road to map
-        if(roadX < 200) roadX = 200; if(roadX > W_MAP-200) roadX = W_MAP-200;
-        world.roadPath.push({x: roadX, y: y});
+    
+    // Trees & Ores
+    for(let i=0; i<600; i++) {
+        let x = X_WATER + 200 + Math.random()*(W_MAP - X_WATER - 200);
+        let y = Math.random()*H_MAP;
+        let type = Math.random()>0.7 ? (Math.random()>0.7?'stone':'iron') : 'tree';
+        let hp = type==='tree'?30:50;
+        world.entities.push({x, y, type, hp, id:Math.random(), scale: 0.8+Math.random()*0.4});
     }
 
-    // 2. Resources (No Overlap)
-    let resources = 0;
-    while(resources < 600) {
-        let x = Math.random() * W_MAP;
-        let y = Math.random() * H_MAP;
-        
-        // Check Road Dist
-        let nearRoad = false;
-        for(let i=0; i<world.roadPath.length; i+=10) {
-            if(Math.hypot(x - world.roadPath[i].x, y - world.roadPath[i].y) < 80) nearRoad = true;
-        }
-        if(nearRoad) continue;
-
-        // Check Overlap
-        let safe = true;
-        for(let e of world.entities) {
-            if(Math.hypot(x - e.x, y - e.y) < 50) safe = false;
-        }
-        if(!safe) continue;
-
-        let rnd = Math.random();
-        let type = 'tree';
-        if(rnd > 0.6) type = 'stone';
-        if(rnd > 0.85) type = 'iron';
-        if(rnd > 0.95) type = 'sulfur';
-
-        let hp = (type==='tree')?30:50;
-        world.entities.push({ x, y, type, hp, id: Math.random() });
-        resources++;
-    }
-
-    // 3. Barrels along the road
-    for(let i=0; i<world.roadPath.length; i+=15) { // every ~300px
-        if(Math.random() < 0.05) {
-            let p = world.roadPath[i];
-            world.entities.push({ 
-                x: p.x + (Math.random()-0.5)*50, 
-                y: p.y, 
-                type: 'barrel', hp: 10, variant: Math.random()>0.5?'blue':'yellow'
-            });
-        }
-    }
-
-    // 4. Animals
-    for(let i=0; i<30; i++) {
+    // Animals (Deer)
+    for(let i=0; i<40; i++) {
         world.entities.push({
-            x: Math.random()*W_MAP, y: Math.random()*H_MAP,
-            type: 'deer', hp: 50, angle: Math.random()*6.28
+            x: X_WATER + 300 + Math.random()*(W_MAP-600),
+            y: Math.random()*H_MAP,
+            type: 'deer', hp: 40, angle: Math.random()*6.28, speed: 0, state: 'idle'
         });
     }
 
-    // 5. Monuments (RT)
-    createMonument(500, 500, 'Supermarket');
-    createMonument(world.roadPath[Math.floor(world.roadPath.length/2)].x + 200, 2000, 'Gas Station');
-    
-    // Spawn player
-    player.x = 200; player.y = H_MAP/2;
-}
+    // Barrels
+    for(let i=0; i<50; i++) {
+        world.entities.push({
+            x: X_WATER + 100 + Math.random()*(W_MAP-200),
+            y: Math.random()*H_MAP,
+            type: 'barrel', hp: 10
+        });
+    }
 
-function createMonument(x, y, type) {
-    // Defines a simple room structure
-    let w = 400, h = 300;
-    // Floor
-    world.static.push({x, y, w, h, type: 'floor', mat: 'concrete'});
-    
-    // Walls (Outer box with openings)
-    createWallRect(x, y, w, h, 20, 100); // 100px opening
-
-    // Loot inside
-    world.entities.push({x: x+50, y: y+50, type: 'barrel', hp:10, variant:'blue'});
-    world.entities.push({x: x+w-50, y: y+h-50, type: 'crate', hp:20});
-    world.entities.push({x: x+w/2, y: y+h/2, type: 'crate', hp:20});
-
-    // Roof (Zone)
-    world.roofs.push({x, y, w, h, type});
-}
-
-function createWallRect(x, y, w, h, thick, doorW) {
-    // Top
-    world.static.push({x, y, w, h: thick, type: 'wall', hp:9999});
-    // Bottom (Split for door)
-    let seg = (w-doorW)/2;
-    world.static.push({x, y: y+h-thick, w: seg, h: thick, type: 'wall', hp:9999});
-    world.static.push({x: x+seg+doorW, y: y+h-thick, w: seg, h: thick, type: 'wall', hp:9999});
-    // Sides
-    world.static.push({x, y, w: thick, h, type: 'wall', hp:9999});
-    world.static.push({x: x+w-thick, y, w: thick, h, type: 'wall', hp:9999});
+    // Player Spawn
+    player.x = X_WATER + 100; player.y = H_MAP/2;
 }
 
 function startGameLoop() {
@@ -353,532 +219,412 @@ function startGameLoop() {
 }
 
 function loop() {
+    gameTime += 0.05;
     update();
     draw();
     gameLoopId = requestAnimationFrame(loop);
 }
 
 /**
- * --- LOGIC ---
+ * --- UPDATE ---
  */
 function update() {
-    // Movement
-    if(!isMenuOpen) {
-        let dx = (input.d - input.a) * 5;
-        let dy = (input.s - input.w) * 5;
-        if(dx||dy) {
-            let nx = player.x + dx;
-            let ny = player.y + dy;
-            if(!checkCol(nx, player.y)) player.x = nx;
-            if(!checkCol(player.x, ny)) player.y = ny;
-            
-            // Map bounds
-            player.x = Math.max(0, Math.min(W_MAP, player.x));
-            player.y = Math.max(0, Math.min(H_MAP, player.y));
-        }
-        player.angle = Math.atan2(input.my - cvs.height/2, input.mx - cvs.width/2);
+    // Player Move
+    let speed = 4;
+    let dx = (input.d - input.a) * speed;
+    let dy = (input.s - input.w) * speed;
+    if(dx||dy) {
+        let nx = player.x + dx;
+        let ny = player.y + dy;
+        player.x = Math.max(X_WATER+20, Math.min(W_MAP, nx)); // Water collide for player too?
+        player.y = Math.max(0, Math.min(H_MAP, ny));
     }
+    player.angle = Math.atan2(input.my - cvs.height/2, input.mx - cvs.width/2);
     
-    // Camera follow
     cam.x = player.x - cvs.width/2;
     cam.y = player.y - cvs.height/2;
 
-    // Animal AI (Passive wandering)
+    // AI Logic (Deer)
     world.entities.forEach(e => {
         if(e.type === 'deer') {
-            if(Math.random() < 0.02) e.angle += (Math.random()-0.5);
-            if(Math.random() < 0.6) {
-                let speed = 1;
-                e.x += Math.cos(e.angle)*speed;
-                e.y += Math.sin(e.angle)*speed;
+            // Panic run
+            if(e.state === 'run' && e.speed > 0) {
+                e.speed *= 0.98;
+                if(e.speed < 0.5) e.state = 'idle';
+            } else {
+                // Idle wander
+                if(Math.random() < 0.01) {
+                    e.angle += (Math.random()-0.5) * 2;
+                    e.speed = 1.5;
+                }
+                if(e.speed > 0) e.speed *= 0.95;
             }
+
+            // Move
+            let nx = e.x + Math.cos(e.angle)*e.speed;
+            let ny = e.y + Math.sin(e.angle)*e.speed;
+
+            // --- WATER AVOIDANCE ---
+            if(nx < X_WATER + 50) { // If hitting water
+                e.angle = 0 + (Math.random()-0.5); // Turn Right (East)
+                e.speed = 3; // Run away
+                nx = e.x + 2;
+            }
+            // Map bounds
+            nx = Math.max(X_WATER+50, Math.min(W_MAP, nx));
+            ny = Math.max(0, Math.min(H_MAP, ny));
+
+            e.x = nx; e.y = ny;
         }
     });
-
-    // Hunger
-    if(Math.random() < 0.005) {
-        player.food -= 0.1;
-        if(player.food <= 0) player.hp -= 0.1;
-        updateUI();
-    }
-}
-
-function checkCol(x, y) {
-    let r = 15;
-    // Check static walls (Foundations are walkable!)
-    for(let b of world.static) {
-        if(b.type === 'wall' || b.type === 'door_locked') {
-            if(x+r > b.x && x-r < b.x+b.w && y+r > b.y && y-r < b.y+b.h) return true;
-        }
-    }
-    // Check deployables (Furnace, Workbench, High Walls)
-    for(let e of world.entities) {
-        if(e.type.startsWith('wb') || e.type === 'furnace' || e.type === 'wall') {
-            // Simplified box collision for entities
-            let size = 40;
-            if(x > e.x-size && x < e.x+size && y > e.y-size && y < e.y+size) return true;
-        }
-    }
-    return false;
 }
 
 /**
- * --- INTERACTION ---
- */
-window.onmousedown = (e) => {
-    if(isMenuOpen) return;
-    
-    let hand = player.belt[player.beltIdx];
-    
-    // Right Click
-    if(e.button === 2) {
-        if(hand && hand.id === 'plan') {
-            // Open Radial
-            let m = document.getElementById('build-menu');
-            m.style.display = 'block';
-            m.style.left = (input.mx - 100) + 'px';
-            m.style.top = (input.my - 100) + 'px';
-            return;
-        }
-    }
-    
-    // Left Click
-    if(e.button === 0) {
-        if(hand && hand.id === 'plan') doBuild();
-        else if(hand && hand.id === 'hammer') doHammer();
-        else doAttack();
-    }
-};
-
-function doAttack() {
-    let wx = cam.x + input.mx;
-    let wy = cam.y + input.my;
-    let hand = player.belt[player.beltIdx];
-    let range = (hand && ITEMS[hand.id].range) || 100;
-    
-    // Hit Entities
-    for(let i=0; i<world.entities.length; i++) {
-        let e = world.entities[i];
-        if(Math.hypot(e.x - wx, e.y - wy) < 30 && Math.hypot(player.x - e.x, player.y - e.y) < range) {
-            let dmg = (hand && ITEMS[hand.id].dmg) || 5;
-            let bonus = (hand && ITEMS[hand.id].bonus);
-            
-            // Gather bonus
-            if(bonus === 'tree' && e.type === 'tree') dmg *= 2;
-            if(bonus === 'rock' && (e.type === 'stone' || e.type === 'iron' || e.type === 'sulfur')) dmg *= 2;
-
-            e.hp -= dmg;
-            e.shake = 5;
-            
-            // Give resources
-            if(e.hp <= 0) {
-                giveLoot(e);
-                world.entities.splice(i, 1);
-            }
-            return;
-        }
-    }
-}
-
-function giveLoot(e) {
-    if(e.type === 'tree') { addItem('wood', 50); notify("+Wood"); }
-    else if(e.type === 'stone') { addItem('stone', 30); notify("+Stone"); }
-    else if(e.type === 'iron') { addItem('iron_ore', 20); if(Math.random()>0.8) addItem('hqm', 1); notify("+Iron Ore"); }
-    else if(e.type === 'sulfur') { addItem('sulfur_ore', 20); notify("+Sulfur"); }
-    else if(e.type === 'barrel') { addItem('scrap', 2); addItem('comp', 1); notify("+Scrap"); }
-    else if(e.type === 'crate') { addItem('scrap', 10); addItem('metal_frags', 5); notify("Looted!"); }
-    else if(e.type === 'deer') { addItem('leather', 5); addItem('bone', 10); addItem('fat', 5); addItem('food', 2); notify("Hunted!"); }
-}
-
-function doBuild() {
-    let wx = cam.x + input.mx;
-    let wy = cam.y + input.my;
-    
-    // Grid snap
-    let bx = Math.floor(wx/50)*50;
-    let by = Math.floor(wy/50)*50;
-
-    let cost = 0;
-    let type = 'wall';
-    let isFloor = false;
-
-    if(buildShape === 'foundation') { cost = 50; type = 'floor'; isFloor = true; }
-    else if(buildShape === 'triangle') { cost = 25; type = 'floor_tri'; isFloor = true; }
-    else if(buildShape === 'wall') { cost = 50; type = 'wall'; }
-    else if(buildShape === 'doorframe') { cost = 40; type = 'doorframe'; }
-    else if(buildShape === 'roof') { cost = 30; type = 'roof_build'; }
-
-    if(countItem('wood') >= cost) {
-        takeItem('wood', cost);
-        world.static.push({
-            x: bx, y: by, w: 50, h: 50, 
-            type: type, 
-            mat: 'wood', // Material level
-            hp: 200,
-            maxHp: 200
-        });
-        notify(`Built ${buildShape}`);
-    } else {
-        notify("Need Wood!");
-    }
-}
-
-function doHammer() {
-    let wx = cam.x + input.mx;
-    let wy = cam.y + input.my;
-    
-    // Find static obj
-    for(let b of world.static) {
-        if(b.x < wx && b.x+b.w > wx && b.y < wy && b.y+b.h > wy) {
-            // Upgrade Logic
-            if(b.mat === 'wood' && countItem('stone') >= 50) {
-                takeItem('stone', 50);
-                b.mat = 'stone';
-                b.hp = 500; b.maxHp = 500;
-                notify("Upgraded to Stone");
-            } else if(b.mat === 'stone' && countItem('metal_frags') >= 50) {
-                takeItem('metal_frags', 50);
-                b.mat = 'sheet';
-                b.hp = 1000; b.maxHp = 1000;
-                notify("Upgraded to Sheet Metal");
-            } else {
-                notify("Cannot upgrade / No resources");
-            }
-            return;
-        }
-    }
-}
-
-function setBuildShape(s) {
-    buildShape = s;
-    closeBuildMenu();
-    notify("Selected: " + s);
-}
-function closeBuildMenu() {
-    document.getElementById('build-menu').style.display = 'none';
-}
-
-/**
- * --- RENDER ---
+ * --- RENDER (VISUALS) ---
  */
 function draw() {
-    // Clear
     ctx.setTransform(1,0,0,1,0,0);
     ctx.fillStyle = '#111'; ctx.fillRect(0,0,cvs.width, cvs.height);
     
-    // Cam transform
     ctx.translate(-cam.x, -cam.y);
 
-    // 1. Terrain
-    // Optimization: Only draw visible area logic would go here, but for simplicity we draw big rects
-    // Water
-    ctx.fillStyle = '#1565c0'; ctx.fillRect(cam.x, cam.y, cvs.width, cvs.height);
-    // Grass Map
-    ctx.fillStyle = '#33691e'; ctx.fillRect(0, 0, W_MAP, H_MAP);
+    // 1. Water (Animated)
+    ctx.fillStyle = '#0d47a1'; 
+    ctx.fillRect(cam.x-100, cam.y-100, W_MAP, cvs.height+200); // Base blue
     
-    // 2. Road
+    // Waves
+    ctx.fillStyle = '#1565c0';
+    let waveOff = Math.sin(gameTime)*10;
     ctx.beginPath();
-    ctx.moveTo(world.roadPath[0].x, world.roadPath[0].y);
-    for(let p of world.roadPath) ctx.lineTo(p.x, p.y);
-    ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 60; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
-    // Road center line
-    ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 2; ctx.setLineDash([20, 20]); ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.moveTo(cam.x, cam.y);
+    // Draw complex wave shape near X_WATER
+    for(let y=cam.y; y<cam.y+cvs.height; y+=20) {
+        let x = X_WATER + Math.sin(y*0.01 + gameTime)*15;
+        ctx.lineTo(x, y);
+    }
+    ctx.lineTo(cam.x, cam.y+cvs.height);
+    ctx.fill();
 
-    // 3. Static Objects (Floors first)
-    // Draw floors
-    world.static.forEach(b => {
-        if(b.type.includes('floor')) drawBuild(b);
-    });
+    // Foam
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for(let y=cam.y; y<cam.y+cvs.height; y+=20) {
+        let x = X_WATER + Math.sin(y*0.01 + gameTime)*15 + 5;
+        ctx.lineTo(x, y);
+    }
+    ctx.stroke();
 
-    // 4. Entities & Walls (Sorted by Y for depth)
-    let renderList = [];
-    world.entities.forEach(e => renderList.push({y:e.y, draw: ()=>drawEntity(e)}));
-    world.static.forEach(b => {
-        if(!b.type.includes('floor')) renderList.push({y:b.y+b.h, draw: ()=>drawBuild(b)});
-    });
-    // Player
-    renderList.push({y:player.y, draw: ()=>drawPlayer()});
+    // 2. Sand/Grass
+    ctx.fillStyle = '#e6ee9c'; // Sand
+    ctx.fillRect(X_WATER, 0, 300, H_MAP);
+    ctx.fillStyle = '#33691e'; // Grass
+    ctx.fillRect(X_WATER+300, 0, W_MAP, H_MAP);
 
-    renderList.sort((a,b)=>a.y - b.y);
-    renderList.forEach(r => r.draw());
+    // 3. Objects (Sorted by Y)
+    let list = [...world.entities, ...world.static, {type:'player', y:player.y}];
+    list.sort((a,b) => a.y - b.y);
 
-    // 5. Roofs (Monuments)
-    world.roofs.forEach(r => {
-        // Fade out if player inside
-        let dist = Math.hypot(player.x - (r.x+r.w/2), player.y - (r.y+r.h/2));
-        if(dist > Math.max(r.w, r.h)/1.5) {
-            ctx.fillStyle = '#212121';
-            ctx.fillRect(r.x, r.y, r.w, r.h);
-            ctx.fillStyle = '#fff';
-            ctx.font = '30px sans-serif'; ctx.textAlign='center';
-            ctx.fillText(r.type, r.x+r.w/2, r.y+r.h/2);
-        }
+    list.forEach(e => {
+        if(e.type==='player') drawPlayer();
+        else drawEntity(e);
     });
 }
 
 function drawEntity(e) {
-    if(e.shake) { ctx.save(); ctx.translate(Math.random()*2, Math.random()*2); e.shake--; }
+    if(e.shake) { ctx.save(); ctx.translate((Math.random()-0.5)*3, 0); e.shake--; }
     
+    // Shadows
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(e.x, e.y+5, 20*(e.scale||1), 8*(e.scale||1), 0, 0, 6.28); ctx.fill();
+
     if(e.type === 'tree') {
-        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(e.x+5, e.y+5, 15, 0, 6.28); ctx.fill();
-        ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(e.x, e.y, 10, 0, 6.28); ctx.fill();
-        ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(e.x, e.y, 30, 0, 6.28); ctx.fill();
-    } 
-    else if(e.type.includes('stone') || e.type.includes('iron') || e.type.includes('sulfur')) {
-        let color = '#9e9e9e';
-        if(e.type === 'iron') color = '#5d4037'; // brown-ish
-        if(e.type === 'sulfur') color = '#ffeb3b';
-        ctx.fillStyle = color;
-        ctx.beginPath(); ctx.moveTo(e.x, e.y-20); ctx.lineTo(e.x+20, e.y+10); ctx.lineTo(e.x-20, e.y+10); ctx.fill();
-        if(e.type === 'iron') { ctx.fillStyle='#d7ccc8'; ctx.beginPath(); ctx.arc(e.x, e.y-5, 5, 0, 6.28); ctx.fill(); }
+        let s = e.scale || 1;
+        // Trunk
+        ctx.fillStyle = '#3e2723'; ctx.fillRect(e.x-4*s, e.y-10*s, 8*s, 15*s);
+        // Leaves (Pine style layers)
+        ctx.fillStyle = '#1b5e20';
+        ctx.beginPath(); ctx.moveTo(e.x-20*s, e.y-5*s); ctx.lineTo(e.x, e.y-40*s); ctx.lineTo(e.x+20*s, e.y-5*s); ctx.fill(); // Bottom
+        ctx.fillStyle = '#2e7d32';
+        ctx.beginPath(); ctx.moveTo(e.x-18*s, e.y-20*s); ctx.lineTo(e.x, e.y-55*s); ctx.lineTo(e.x+18*s, e.y-20*s); ctx.fill(); // Mid
+        ctx.fillStyle = '#4caf50';
+        ctx.beginPath(); ctx.moveTo(e.x-12*s, e.y-40*s); ctx.lineTo(e.x, e.y-70*s); ctx.lineTo(e.x+12*s, e.y-40*s); ctx.fill(); // Top
+    }
+    else if(e.type === 'stone' || e.type === 'iron') {
+        let col = e.type==='iron' ? '#5d4037' : '#9e9e9e';
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(e.x, e.y-5, 20, 0, 6.28); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.arc(e.x-5, e.y-10, 8, 0, 6.28); ctx.fill(); // Highlight
     }
     else if(e.type === 'barrel') {
-        ctx.fillStyle = (e.variant==='blue') ? '#1565c0' : '#fbc02d';
-        ctx.beginPath(); ctx.arc(e.x, e.y, 15, 0, 6.28); ctx.fill();
-        ctx.strokeStyle = '#5d4037'; ctx.lineWidth=2; ctx.stroke(); // Rust outline
+        ctx.fillStyle = '#1976d2'; ctx.beginPath(); ctx.arc(e.x, e.y-10, 15, 0, 6.28); ctx.fill();
+        ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.stroke();
     }
     else if(e.type === 'deer') {
+        // Body
         ctx.fillStyle = '#8d6e63';
         ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.angle);
-        ctx.fillRect(-10, -5, 20, 10);
-        ctx.beginPath(); ctx.arc(10, 0, 5, 0, 6.28); ctx.fill(); // head
+        
+        // Legs
+        ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 3;
+        let legOff = Math.sin(gameTime*20 * (e.speed/2)) * 5;
+        if(e.speed < 0.1) legOff = 0;
+        ctx.beginPath(); ctx.moveTo(10, 5); ctx.lineTo(10+legOff, 15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-10, 5); ctx.lineTo(-10-legOff, 15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(10-legOff, -15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-10+legOff, -15); ctx.stroke();
+
+        // Main Body
+        ctx.fillRect(-15, -8, 30, 16);
+        
+        // Neck & Head
+        ctx.beginPath(); ctx.arc(18, 0, 6, 0, 6.28); ctx.fill(); // Head
+        ctx.fillRect(10, -4, 10, 8); // Neck
+        
+        // Antlers
+        ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(20, -2); ctx.lineTo(28, -6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(20, 2); ctx.lineTo(28, 6); ctx.stroke();
+
         ctx.restore();
     }
-    else if(e.type === 'crate') {
-        ctx.fillStyle = '#6d4c41'; ctx.fillRect(e.x-15, e.y-15, 30, 30);
-        ctx.strokeStyle = '#a1887f'; ctx.strokeRect(e.x-15, e.y-15, 30, 30);
-    }
-    else if(e.type === 'furnace') {
-        ctx.fillStyle = '#757575'; ctx.beginPath(); ctx.arc(e.x, e.y, 20, 0, 6.28); ctx.fill();
-        ctx.fillStyle = '#ff5722'; ctx.beginPath(); ctx.arc(e.x, e.y, 10, 0, 6.28); ctx.fill(); // Fire
-    }
-    
-    if(e.shake) ctx.restore();
-}
 
-function drawBuild(b) {
-    let colors = { wood: '#8d6e63', stone: '#9e9e9e', sheet: '#37474f', concrete: '#424242' };
-    ctx.fillStyle = colors[b.mat] || '#555';
-    ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
-    
-    if(b.type === 'floor_tri') {
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x+b.w, b.y); ctx.lineTo(b.x, b.y+b.h); ctx.fill(); ctx.stroke();
-    } else {
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.strokeRect(b.x, b.y, b.w, b.h);
-    }
+    if(e.shake) ctx.restore();
 }
 
 function drawPlayer() {
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.rotate(player.angle);
+    
     // Body
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0,14,0,6.28); ctx.fill();
+    ctx.fillStyle = '#ffe0b2'; // Skin
+    ctx.beginPath(); ctx.arc(0,0,12,0,6.28); ctx.fill();
+    ctx.fillStyle = '#333'; // Vest
+    ctx.beginPath(); ctx.arc(0,0,10,0,6.28); ctx.fill();
+    
     // Hands
-    ctx.fillStyle = '#fbc02d';
-    ctx.beginPath(); ctx.arc(10, 10, 5, 0, 6.28); ctx.fill();
-    ctx.beginPath(); ctx.arc(10, -10, 5, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ffe0b2';
+    ctx.beginPath(); ctx.arc(10, 12, 5, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(10, -12, 5, 0, 6.28); ctx.fill();
+
     // Item
-    let hand = player.belt[player.beltIdx];
-    if(hand) {
-        ctx.fillStyle = '#ccc';
-        if(ITEMS[hand.id].type === 'weapon') { ctx.fillStyle = '#000'; ctx.fillRect(10, -3, 30, 6); }
-        else if(ITEMS[hand.id].id === 'plan') { ctx.fillStyle = 'blue'; ctx.fillRect(5, -5, 10, 10); }
+    let item = player.belt[player.beltIdx];
+    if(item) {
+        // Draw item simple representation
+        ctx.fillStyle = '#777';
+        if(item.id=='ak' || item.id=='bow') { ctx.fillStyle='black'; ctx.fillRect(10, -2, 30, 4); }
+        else if(item.id.includes('axe')) { ctx.fillStyle='red'; ctx.beginPath(); ctx.moveTo(20,0); ctx.lineTo(30,10); ctx.lineTo(30,-10); ctx.fill(); }
+        else { ctx.fillRect(15, -5, 10, 10); }
     }
+    
     ctx.restore();
 }
 
 /**
- * --- INVENTORY SYSTEM ---
+ * --- INVENTORY DRAG & DROP LOGIC ---
  */
-function addItem(id, count) {
-    // Try Belt
-    for(let i=0; i<6; i++) {
-        if(player.belt[i] && player.belt[i].id === id) { player.belt[i].count += count; updateUI(); return; }
-        if(!player.belt[i] && !hasItemInInv(id)) { player.belt[i] = {id, count}; updateUI(); return; } // Pref belt if not in inv
-    }
-    // Try Inv
-    for(let i=0; i<player.inv.length; i++) {
-        if(player.inv[i] && player.inv[i].id === id) { player.inv[i].count += count; updateUI(); return; }
-    }
-    for(let i=0; i<player.inv.length; i++) {
-        if(!player.inv[i]) { player.inv[i] = {id, count}; updateUI(); return; }
+// Render Inventory Grids
+function updateUI() {
+    renderGrid('hotbar', player.belt, 6, 'belt');
+    renderGrid('inv-grid', player.inv, 30, 'inv');
+    updateStats();
+}
+
+function renderGrid(domId, arr, size, type) {
+    let container = document.getElementById(domId);
+    container.innerHTML = '';
+    
+    for(let i=0; i<size; i++) {
+        let slot = document.createElement('div');
+        slot.className = 'slot';
+        if(type === 'belt' && i === player.beltIdx) slot.classList.add('active');
+        
+        // DATA attributes for drag detection
+        slot.dataset.idx = i;
+        slot.dataset.type = type;
+
+        let item = arr[i];
+        if(item) {
+            slot.innerHTML = `<div class="slot-icon">${ITEMS[item.id].icon}</div><div class="slot-count">${item.count}</div>`;
+        }
+
+        // Mouse Events for Drag
+        slot.onmousedown = (e) => onSlotDown(e, i, type);
+        slot.onmouseup = (e) => onSlotUp(e, i, type);
+
+        container.appendChild(slot);
     }
 }
-function hasItemInInv(id) { return player.inv.some(s=>s&&s.id===id) || player.belt.some(s=>s&&s.id===id); }
+
+// DRAG START
+function onSlotDown(e, idx, type) {
+    if(e.button !== 0) return; // Only Left Click
+    let arr = type === 'belt' ? player.belt : player.inv;
+    if(!arr[idx]) return; // Empty slot
+
+    dragObj.active = true;
+    dragObj.item = arr[idx];
+    dragObj.fromIdx = idx;
+    dragObj.fromType = type;
+    
+    // Create Ghost
+    let g = document.getElementById('drag-ghost');
+    g.style.display = 'flex';
+    g.innerHTML = `<div class="slot active"><div class="slot-icon">${ITEMS[arr[idx].id].icon}</div></div>`;
+    updateGhostPos(e);
+}
+
+// DRAG MOVE
+window.onmousemove = (e) => {
+    input.mx = e.clientX; input.my = e.clientY;
+    if(dragObj.active) updateGhostPos(e);
+};
+
+function updateGhostPos(e) {
+    let g = document.getElementById('drag-ghost');
+    g.style.left = e.clientX + 'px';
+    g.style.top = e.clientY + 'px';
+}
+
+// DRAG END
+function onSlotUp(e, toIdx, toType) {
+    if(!dragObj.active) return;
+    
+    // Logic to Swap
+    let sourceArr = dragObj.fromType === 'belt' ? player.belt : player.inv;
+    let targetArr = toType === 'belt' ? player.belt : player.inv;
+    
+    let itemA = sourceArr[dragObj.fromIdx]; // Item being dragged
+    let itemB = targetArr[toIdx]; // Item at destination
+    
+    // Swap
+    sourceArr[dragObj.fromIdx] = itemB;
+    targetArr[toIdx] = itemA;
+    
+    // Reset
+    stopDrag();
+    updateUI();
+}
+
+window.onmouseup = () => {
+    if(dragObj.active) stopDrag(); // Dropped outside
+};
+
+function stopDrag() {
+    dragObj.active = false;
+    document.getElementById('drag-ghost').style.display = 'none';
+    updateUI(); // Redraw to fix temporary visual states
+}
+
+// Interaction
+window.onmousedown = (e) => {
+    if(dragObj.active) return; // Don't attack if dragging
+    if(document.getElementById('game-menu').style.display === 'flex') return; // Don't attack in menu
+    
+    // Attack / Gather
+    let wx = cam.x + e.clientX;
+    let wy = cam.y + e.clientY;
+    let hand = player.belt[player.beltIdx];
+    
+    // Check Hit
+    let hit = false;
+    world.entities.forEach((ent, i) => {
+        if(Math.hypot(ent.x-wx, ent.y-wy) < 30 && Math.hypot(player.x-ent.x, player.y-ent.y) < 150) {
+            let dmg = (hand && ITEMS[hand.id].dmg) || 5;
+            if(hand && ITEMS[hand.id].bonus === ent.type) dmg *= 2; // Bonus Tool
+            
+            ent.hp -= dmg;
+            ent.shake = 10;
+            
+            // Deer run away
+            if(ent.type === 'deer') { ent.state = 'run'; ent.speed = 4; ent.angle = Math.atan2(ent.y-player.y, ent.x-player.x); }
+            
+            if(ent.hp <= 0) {
+                world.entities.splice(i, 1);
+                // Give Loot
+                if(ent.type==='tree') addItem('wood', 50);
+                if(ent.type==='stone') addItem('stone', 30);
+                if(ent.type==='iron') addItem('iron_ore', 10);
+                if(ent.type==='barrel') addItem('scrap', 2);
+                if(ent.type==='deer') { addItem('leather', 2); addItem('food', 2); }
+                notify("Looted!");
+            }
+            hit = true;
+        }
+    });
+};
+
+function addItem(id, count) {
+    // 1. Stack in existing
+    for(let i=0; i<player.belt.length; i++) if(player.belt[i] && player.belt[i].id==id) { player.belt[i].count+=count; updateUI(); return; }
+    for(let i=0; i<player.inv.length; i++) if(player.inv[i] && player.inv[i].id==id) { player.inv[i].count+=count; updateUI(); return; }
+    // 2. Empty Belt
+    for(let i=0; i<player.belt.length; i++) if(!player.belt[i]) { player.belt[i]={id,count}; updateUI(); return; }
+    // 3. Empty Inv
+    for(let i=0; i<player.inv.length; i++) if(!player.inv[i]) { player.inv[i]={id,count}; updateUI(); return; }
+    notify("Inventory Full!");
+}
+
+function updateStats() {
+    document.getElementById('hp-bar').style.width = player.hp + '%';
+    document.getElementById('food-bar').style.width = player.food + '%';
+}
+
+function notify(msg) {
+    let d = document.createElement('div'); d.className='note'; d.innerText=msg;
+    document.getElementById('notify-area').appendChild(d);
+    setTimeout(()=>d.remove(),3000);
+}
+
+// Controls
+window.onkeydown = e => {
+    if(e.code==='KeyW') input.w=1; if(e.code==='KeyS') input.s=1;
+    if(e.code==='KeyA') input.a=1; if(e.code==='KeyD') input.d=1;
+    if(e.code==='KeyE') {
+        let m = document.getElementById('game-menu');
+        m.style.display = (m.style.display==='flex'?'none':'flex');
+        // Render Craft
+        let l = document.getElementById('craft-list'); l.innerHTML='';
+        RECIPES.forEach(r => {
+            let row = document.createElement('div'); row.className='craft-row';
+            let cost = Object.keys(r.cost).map(k=>`${ITEMS[k].icon} ${r.cost[k]}`).join(' ');
+            row.innerHTML = `<span>${r.name||ITEMS[r.id].name}</span><span style="font-size:12px;color:#aaa">${cost}</span>`;
+            row.onclick = () => {
+                let ok=true; for(k in r.cost) if(countItem(k)<r.cost[k]) ok=false;
+                if(ok) { for(k in r.cost) takeItem(k,r.cost[k]); addItem(r.id, r.out||1); notify("Crafted!"); }
+                else notify("Need Res");
+            };
+            l.appendChild(row);
+        });
+    }
+    if(e.key >= '1' && e.key <= '6') { player.beltIdx = parseInt(e.key)-1; updateUI(); }
+};
+window.onkeyup = e => {
+    if(e.code==='KeyW') input.w=0; if(e.code==='KeyS') input.s=0;
+    if(e.code==='KeyA') input.a=0; if(e.code==='KeyD') input.d=0;
+};
+function resize() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
+
 function countItem(id) {
     let c = 0;
-    [...player.belt, ...player.inv].forEach(s => { if(s && s.id===id) c += s.count });
+    [...player.belt, ...player.inv].forEach(s=>{if(s&&s.id==id)c+=s.count});
     return c;
 }
 function takeItem(id, n) {
-    let left = n;
-    [player.belt, player.inv].forEach(list => {
-        list.forEach((s, i) => {
-            if(left > 0 && s && s.id === id) {
-                let take = Math.min(s.count, left);
-                s.count -= take; left -= take;
-                if(s.count <= 0) list[i] = null;
+    let left=n;
+    [player.belt, player.inv].forEach(arr=>{
+        arr.forEach((s,i)=>{
+            if(left>0 && s && s.id==id) {
+                let take = Math.min(left, s.count);
+                s.count-=take; left-=take;
+                if(s.count<=0) arr[i]=null;
             }
         });
     });
     updateUI();
 }
-
-/**
- * --- UI & CRAFTING ---
- */
-function updateUI() {
-    document.getElementById('hp-bar').style.width = player.hp + '%';
-    document.getElementById('food-bar').style.width = player.food + '%';
-
-    // Hotbar
-    let hb = document.getElementById('hotbar'); hb.innerHTML = '';
-    player.belt.forEach((s, i) => {
-        let d = document.createElement('div');
-        d.className = 'slot ' + (i===player.beltIdx?'active':'');
-        if(s) d.innerHTML = `<div class="slot-icon">${ITEMS[s.id].icon}</div><div class="slot-count">${s.count}</div>`;
-        d.onclick = () => { player.beltIdx = i; updateUI(); };
-        hb.appendChild(d);
-    });
-
-    // Main Inv
-    let gr = document.getElementById('inv-grid'); gr.innerHTML = '';
-    player.inv.forEach((s, i) => {
-        let d = document.createElement('div'); d.className = 'slot';
-        if(s) d.innerHTML = `<div class="slot-icon">${ITEMS[s.id].icon}</div><div class="slot-count">${s.count}</div>`;
-        // Simple move to belt logic for demo
-        d.onclick = () => { if(s && !player.belt[player.beltIdx]) { player.belt[player.beltIdx] = s; player.inv[i] = null; updateUI(); } };
-        gr.appendChild(d);
-    });
-}
-
-function renderCraftTabs() {
-    let t = document.getElementById('craft-tabs'); t.innerHTML = '';
-    for(let k in CATEGORIES) {
-        let b = document.createElement('div'); b.className = 'tab'; b.innerText = CATEGORIES[k];
-        b.onclick = () => renderCraftList(k);
-        t.appendChild(b);
-    }
-    renderCraftList('tool'); // Default
-}
-
-function renderCraftList(cat) {
-    let l = document.getElementById('craft-list'); l.innerHTML = '';
-    
-    // Check WB level nearby
-    let nearWb = 0;
-    let nearFurnace = false;
-    world.entities.forEach(e => {
-        if(Math.hypot(player.x-e.x, player.y-e.y) < 150) {
-            if(e.type === 'wb1') nearWb = Math.max(nearWb, 1);
-            if(e.type === 'wb2') nearWb = Math.max(nearWb, 2);
-            if(e.type === 'wb3') nearWb = Math.max(nearWb, 3);
-            if(e.type === 'furnace') nearFurnace = true;
-        }
-    });
-
-    RECIPES.forEach(r => {
-        if(r.cat !== cat) return;
-        
-        let el = document.createElement('div'); el.className = 'craft-row';
-        let item = ITEMS[r.id];
-        
-        // Requirements String
-        let reqs = Object.keys(r.cost).map(k => `${ITEMS[k].icon}${r.cost[k]}`).join(' ');
-        let wbReq = r.wb ? ` | WB Lev ${r.wb}` : '';
-        let stReq = r.reqStation === 'furnace' ? ' | Need 🔥' : '';
-        
-        el.innerHTML = `
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:20px">${item.icon}</span>
-                <div>
-                    <div>${item.name}</div>
-                    <div style="font-size:10px; color:#aaa">${reqs} ${wbReq} ${stReq}</div>
-                </div>
-            </div>
-            <button style="padding:5px 10px; background:#76ff03; border:none; color:black; font-weight:bold; cursor:pointer">Craft</button>
-        `;
-
-        // Validation
-        let canCraft = true;
-        for(let k in r.cost) if(countItem(k) < r.cost[k]) canCraft = false;
-        if(r.wb && nearWb < r.wb) canCraft = false;
-        if(r.reqStation === 'furnace' && !nearFurnace) canCraft = false;
-
-        if(!canCraft) { el.classList.add('locked'); el.onclick = null; }
-        else {
-            el.onclick = () => {
-                for(let k in r.cost) takeItem(k, r.cost[k]);
-                addItem(r.id, r.out || 1);
-                notify("Crafted " + item.name);
-                renderCraftList(cat); // Update UI
-            }
-        }
-        l.appendChild(el);
-    });
-}
-
-function notify(msg) {
-    let d = document.createElement('div'); d.className = 'note'; d.innerText = msg;
-    document.getElementById('notify-area').appendChild(d);
-    setTimeout(()=>d.remove(), 4000);
-}
-
-/**
- * --- SAVE SYSTEM ---
- */
-function saveGame() {
-    if(player.hp <= 0) return; // Don't save dead state
-    let data = { player, world };
-    localStorage.setItem('rust2d_save', JSON.stringify(data));
-    notify("Game Saved");
-}
-
-function loadGame() {
-    try {
-        let d = JSON.parse(localStorage.getItem('rust2d_save'));
-        player = d.player;
-        world = d.world;
-        notify("Save Loaded!");
-    } catch(e) {
-        console.error("Save Load Error", e);
-        generateWorld();
-    }
-}
-
-/**
- * --- INPUTS ---
- */
-window.onkeydown = e => {
-    if(e.code === 'KeyW') input.w = 1;
-    if(e.code === 'KeyS') input.s = 1;
-    if(e.code === 'KeyA') input.a = 1;
-    if(e.code === 'KeyD') input.d = 1;
-    if(e.key >= '1' && e.key <= '6') { player.beltIdx = parseInt(e.key)-1; updateUI(); }
-    
-    if(e.code === 'KeyE') {
-        isMenuOpen = !isMenuOpen;
-        document.getElementById('game-menu').style.display = isMenuOpen ? 'flex' : 'none';
-        if(isMenuOpen) renderCraftTabs();
-    }
-    // Context Menu disable default
-    if(e.code === 'Escape') { closeBuildMenu(); isMenuOpen=false; document.getElementById('game-menu').style.display='none'; }
-};
-window.onkeyup = e => {
-    if(e.code === 'KeyW') input.w = 0;
-    if(e.code === 'KeyS') input.s = 0;
-    if(e.code === 'KeyA') input.a = 0;
-    if(e.code === 'KeyD') input.d = 0;
-};
-window.onmousemove = e => { input.mx = e.clientX; input.my = e.clientY; };
-window.oncontextmenu = e => e.preventDefault();
-window.onresize = resize;
-
-function resize() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
-
+function loadGame() { generateWorld(); } // Placeholder
 </script>
 </body>
 </html>
