@@ -2,92 +2,90 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Rust 2D: Full Release</title>
+<title>Rust 2D: Stable Nature</title>
 <style>
     body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; user-select: none; }
     canvas { display: block; }
 
     /* UI Layers */
-    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
     .pointer { pointer-events: auto; }
 
     /* HUD */
-    #hud { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 101; }
-    .bar { width: 250px; height: 25px; background: rgba(0,0,0,0.8); border: 1px solid #555; border-radius: 4px; overflow: hidden; position: relative; }
+    #hud { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
+    .bar { width: 250px; height: 25px; background: rgba(0,0,0,0.8); border: 2px solid #555; border-radius: 4px; overflow: hidden; position: relative; }
     .fill { height: 100%; transition: width 0.2s; }
     .bar-text { position: absolute; right: 10px; top: 0; font-size: 14px; color: white; font-weight: bold; line-height: 25px; text-shadow: 1px 1px 1px #000; }
 
-    /* HOTBAR (НИЖНИЙ ИНВЕНТАРЬ) */
+    /* HOTBAR */
     #hotbar { 
         position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); 
         display: flex; gap: 8px; padding: 10px; 
-        background: rgba(30,30,30,0.9); border-radius: 10px; border: 1px solid #555; 
-        pointer-events: auto; z-index: 101;
+        background: rgba(30,30,30,0.8); border-radius: 10px; border: 1px solid #666; 
+        pointer-events: auto; z-index: 20;
     }
     .slot { 
-        width: 70px; height: 70px; 
-        background: rgba(50,50,50,0.5); border: 2px solid #555; 
+        width: 65px; height: 65px; 
+        background: rgba(60,60,60,0.6); border: 2px solid #555; 
         color: white; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        cursor: pointer; position: relative; border-radius: 4px; transition: 0.1s;
+        cursor: pointer; position: relative; border-radius: 6px;
     }
-    .slot:hover { background: rgba(80,80,80,0.8); border-color: #fff; }
-    .slot.active { border-color: #76ff03; box-shadow: 0 0 15px rgba(118,255,3,0.3); transform: translateY(-4px); }
+    .slot:hover { background: rgba(90,90,90,0.8); border-color: #fff; }
+    .slot.active { border-color: #76ff03; box-shadow: 0 0 15px rgba(118,255,3,0.3); transform: translateY(-3px); }
     .slot-icon { font-size: 32px; filter: drop-shadow(0 2px 2px black); pointer-events: none; }
-    .slot-count { position: absolute; bottom: 2px; right: 4px; font-weight: bold; font-size: 14px; pointer-events: none; }
+    .slot-count { position: absolute; bottom: 2px; right: 4px; font-weight: bold; font-size: 14px; pointer-events: none; text-shadow: 1px 1px 0 #000; }
 
-    /* INVENTORY MENU */
+    /* MENUS */
     .menu-overlay { 
         position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
         background: rgba(0,0,0,0.85); display: none; 
-        justify-content: center; align-items: center; z-index: 200; pointer-events: auto;
+        justify-content: center; align-items: center; z-index: 100; pointer-events: auto;
     }
     .panel { 
-        background: #2b2b2b; border: 1px solid #555; padding: 30px; color: #eee; border-radius: 8px; 
+        background: #2b2b2b; border: 2px solid #555; padding: 30px; color: #eee; border-radius: 8px; 
         box-shadow: 0 20px 50px rgba(0,0,0,1); display: flex; gap: 30px; 
     }
     .inv-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-
-    /* CRAFTING */
-    .craft-list { width: 300px; height: 400px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 5px; }
+    
+    /* CRAFT */
+    .craft-list { width: 300px; height: 400px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 4px; }
     .craft-row { 
         display: flex; justify-content: space-between; align-items: center; 
-        padding: 8px; background: #383838; margin-bottom: 5px; 
+        padding: 10px; background: #383838; margin-bottom: 5px; 
         cursor: pointer; border: 1px solid #444; 
     }
     .craft-row:hover { background: #555; border-color: #999; }
     .craft-req { font-size: 11px; color: #aaa; }
 
-    /* DRAG GHOST ITEM */
+    /* DRAG GHOST */
     #drag-ghost {
-        position: fixed; width: 70px; height: 70px; pointer-events: none; z-index: 9999;
+        position: fixed; width: 65px; height: 65px; pointer-events: none; z-index: 9999;
         display: none; opacity: 0.9; transform: translate(-50%, -50%);
-        background: rgba(40,40,40,0.8); border: 2px solid #76ff03; border-radius: 4px;
-        align-items: center; justify-content: center; font-size: 32px; color: white;
+        background: rgba(50,50,50,0.9); border: 2px solid #76ff03; border-radius: 6px;
+        align-items: center; justify-content: center;
     }
+    #drag-ghost .slot-icon { font-size: 32px; }
 
     /* NOTIFICATIONS */
-    #notify-area { position: absolute; bottom: 130px; right: 20px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
-    .note { background: rgba(20,20,20,0.9); color: #fff; padding: 10px 20px; border-right: 4px solid #76ff03; font-weight: bold; animation: fadeOut 3s forwards; }
-    @keyframes fadeOut { 0% {opacity:1;} 90% {opacity:1;} 100% {opacity:0;} }
+    #notify-area { position: absolute; bottom: 130px; right: 20px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; z-index: 30; }
+    .note { background: rgba(20,20,20,0.95); color: #fff; padding: 10px 20px; border-right: 4px solid #76ff03; font-weight: bold; animation: fadeOut 3s forwards; box-shadow: 0 2px 5px black; }
+    @keyframes fadeOut { 0% {opacity:1;} 80% {opacity:1;} 100% {opacity:0;} }
 
-    /* START SCREEN */
-    #start-screen {
-        position: absolute; top:0; left:0; width:100%; height:100%; background: #111; z-index: 500;
-        display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto;
-    }
-    .btn { padding: 20px 60px; font-size: 24px; background: #76ff03; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; }
+    /* START BTN */
+    #start-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: #111; z-index: 200; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; }
+    .btn { padding: 20px 60px; font-size: 24px; background: #76ff03; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; transition: 0.2s; }
+    .btn:hover { transform: scale(1.05); background: #fff; }
 </style>
 </head>
 <body>
 
 <canvas id="cvs"></canvas>
 
-<div id="drag-ghost"></div>
+<div id="drag-ghost"><div class="slot-icon"></div></div>
 
 <div id="start-screen">
     <h1 style="color:#76ff03; font-size:80px; margin:0;">RUST 2D</h1>
-    <p style="color:#aaa; font-size:20px;">SURVIVAL • CRAFT • RAID</p>
-    <br>
+    <p style="color:#aaa; font-size:20px; margin-bottom: 30px;">STABLE EDITION</p>
     <button class="btn" onclick="startGame()">ИГРАТЬ</button>
 </div>
 
@@ -120,18 +118,16 @@ const ctx = cvs.getContext('2d');
 const W_MAP = 3000, H_MAP = 3000;
 const X_WATER = 400;
 
-/* --- DATABASE --- */
+/* --- ITEMS DB --- */
 const ITEMS = {
-    // Tools
     rock: { name: 'Камень', icon: '🪨', type: 'tool', dmg: 10, bonus: 'rock' },
     axe: { name: 'Топор', icon: '🪓', type: 'tool', dmg: 25, bonus: 'tree' },
     pickaxe: { name: 'Кирка', icon: '⛏️', type: 'tool', dmg: 25, bonus: 'rock' },
-    hammer: { name: 'Киянка', icon: '🔨', type: 'tool', dmg: 5 }, // For upgrades
+    hammer: { name: 'Киянка', icon: '🔨', type: 'tool', dmg: 5 },
     
-    // Resources
     wood: { name: 'Дерево', icon: '🌲', type: 'res' },
     stone: { name: 'Руда', icon: '🌑', type: 'res' },
-    iron_ore: { name: 'Жел. Руда', icon: '🪨', type: 'res' },
+    iron_ore: { name: 'Жел. Руда', icon: '🪨', type: 'res' }, // Исправлен визуал
     sulfur_ore: { name: 'Сера', icon: '🟡', type: 'res' },
     metal_frags: { name: 'Фрагменты', icon: '🔩', type: 'res' },
     scrap: { name: 'Скрап', icon: '⚙️', type: 'comp' },
@@ -139,60 +135,49 @@ const ITEMS = {
     leather: { name: 'Кожа', icon: '🥓', type: 'comp' },
     fat: { name: 'Жир', icon: '🥩', type: 'comp' },
 
-    // Weapons
     bow: { name: 'Лук', icon: '🏹', type: 'weapon', dmg: 35 },
     ak: { name: 'AK-47', icon: '🔫', type: 'weapon', dmg: 15, auto: true },
     
-    // Deployables
     box: { name: 'Ящик', icon: '📦', type: 'deploy' },
     furnace: { name: 'Печь', icon: '🔥', type: 'deploy' },
     wb1: { name: 'Верстак 1', icon: '🛠️', type: 'deploy' },
-    wb2: { name: 'Верстак 2', icon: '🗜️', type: 'deploy' },
     
-    // Building
     plan: { name: 'План', icon: '📄', type: 'build' },
-    door_wood: { name: 'Дверь (Дер)', icon: '🚪', type: 'deploy_door' },
-    door_sheet: { name: 'Дверь (Жел)', icon: '🚪', type: 'deploy_door' },
-    wall_wood: { name: 'Стена (Дер)', icon: '🧱', type: 'deploy_wall' },
+    door_wood: { name: 'Дверь (Д)', icon: '🚪', type: 'deploy_door' },
+    wall_wood: { name: 'Стена (Д)', icon: '🧱', type: 'deploy_wall' },
 
     food: { name: 'Еда', icon: '🥫', type: 'food', val: 30 }
 };
 
 const RECIPES = [
-    // Basics
     { id: 'axe', cost: { wood: 100, stone: 50 } },
     { id: 'pickaxe', cost: { wood: 100, stone: 50 } },
     { id: 'hammer', cost: { wood: 100 } },
     { id: 'plan', cost: { wood: 20 } },
-    // Build
     { id: 'door_wood', cost: { wood: 300 } },
-    { id: 'door_sheet', cost: { metal_frags: 150, wood: 50 } },
+    { id: 'wall_wood', cost: { wood: 200 } },
     { id: 'box', cost: { wood: 100 } },
     { id: 'furnace', cost: { stone: 200, wood: 100, fat: 20 } },
     { id: 'wb1', cost: { wood: 500, scrap: 50 } },
-    { id: 'wb2', cost: { wood: 500, metal_frags: 100, scrap: 200 } },
-    // Weapons
     { id: 'bow', cost: { wood: 200, cloth: 50 } },
-    { id: 'ak', cost: { metal_frags: 200, wood: 100, scrap: 50 } }, // Simplified
-    // Processing
-    { id: 'metal_frags', name:'Переплавить', cost: { iron_ore: 1, wood: 5 }, out: 1 },
+    { id: 'ak', cost: { metal_frags: 200, wood: 100, scrap: 50 } },
+    { id: 'metal_frags', name:'Переплавка', cost: { iron_ore: 1, wood: 5 }, out: 1 },
 ];
 
 /* --- STATE --- */
 let player = { x: 600, y: 1500, hp: 100, food: 100, angle: 0, inv: Array(24).fill(null), belt: Array(6).fill(null), beltIdx: 0 };
-let world = { entities: [], static: [], roads: [], roofs: [] };
+let world = { entities: [], static: [], roads: [] };
 let cam = { x:0, y:0 };
 let input = { w:0, a:0, s:0, d:0, mx:0, my:0 };
 let gameTime = 0;
 let dragObj = { active: false, item: null, fromIdx: -1, fromType: null };
 
-/* --- INIT --- */
+/* --- GAME ENGINE --- */
 function startGame() {
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('ui-layer').style.display = 'block';
     resize();
 
-    // Starter Items
     if(!player.belt[0]) addItem('rock', 1);
     if(!player.belt[1]) addItem('food', 3);
 
@@ -205,51 +190,44 @@ function generateWorld() {
     world.entities = [];
     world.static = [];
     world.roads = [];
-    world.roofs = [];
 
-    // 1. Дорога (Road)
+    // 1. Дорога
     let rx = 1500;
     for(let y=0; y<H_MAP; y+=20) {
-        rx += Math.sin(y*0.003)*10 + (Math.random()-0.5)*2;
-        if(rx < 600) rx = 600; if(rx > W_MAP-600) rx = W_MAP-600;
-        world.roads.push({x:rx, y:y});
+        rx += Math.sin(y*0.003)*10;
+        let finalX = Math.max(600, Math.min(W_MAP-600, rx + 1500)); 
+        world.roads.push({x:finalX, y:y});
     }
 
-    // 2. Здания (РТ)
-    createMonument(world.roads[20].x - 300, 400, "Supermarket");
-    createMonument(world.roads[100].x + 250, 2000, "Gas Station");
-
-    // 3. Ресурсы (Trees/Rocks)
-    for(let i=0; i<600; i++) {
+    // 2. Ресурсы (Без РТ)
+    for(let i=0; i<500; i++) {
         let x = X_WATER + Math.random()*(W_MAP-X_WATER);
         let y = Math.random()*H_MAP;
         
-        // Don't spawn on road
+        // Проверка дороги
         let onRoad = false;
-        for(let j=0; j<world.roads.length; j+=20) if(Math.hypot(x-world.roads[j].x, y-world.roads[j].y) < 120) onRoad=true;
+        for(let r of world.roads) if(Math.abs(r.y - y) < 20 && Math.abs(r.x - x) < 100) onRoad = true;
         if(onRoad) continue;
 
         let type = 'tree';
         let r = Math.random();
-        if(r > 0.7) type = (Math.random()>0.5 ? 'stone' : 'iron');
+        if(r > 0.75) type = (Math.random()>0.5 ? 'stone' : 'iron');
         if(r > 0.95) type = 'sulfur';
 
         let hp = type==='tree'?30:50;
-        // Random shape seed
-        let seed = Math.random()*100;
-        world.entities.push({x, y, type, hp, seed, scale: 0.8+Math.random()*0.4});
+        world.entities.push({x, y, type, hp, scale: 0.8+Math.random()*0.4});
     }
 
-    // 4. Бочки (Barrels)
-    for(let i=0; i<world.roads.length; i+=15) {
-        if(Math.random() < 0.15) {
+    // 3. Бочки (на дороге)
+    for(let i=0; i<world.roads.length; i+=20) {
+        if(Math.random() < 0.2) {
             let p = world.roads[i];
             world.entities.push({x:p.x+(Math.random()-0.5)*50, y:p.y, type:'barrel', hp:10});
         }
     }
 
-    // 5. Олени (Deer)
-    for(let i=0; i<30; i++) {
+    // 4. Олени
+    for(let i=0; i<25; i++) {
         world.entities.push({
             x: Math.random()*W_MAP, y: Math.random()*H_MAP, 
             type: 'deer', hp: 40, angle: Math.random()*6.28, speed: 0
@@ -257,24 +235,6 @@ function generateWorld() {
     }
 }
 
-function createMonument(x, y, name) {
-    let w = 400, h = 300;
-    // Floor
-    world.static.push({x, y, w, h, type:'floor'});
-    // Walls
-    let t = 15;
-    world.static.push({x, y, w, h:t, type:'wall'}); // Top
-    world.static.push({x, y:y+h-t, w, h:t, type:'wall'}); // Bot
-    world.static.push({x, y, w:t, h, type:'wall'}); // Left
-    world.static.push({x:x+w-t, y, w:t, h, type:'wall'}); // Right
-    // Loot
-    world.entities.push({x:x+50, y:y+50, type:'barrel', hp:10});
-    world.entities.push({x:x+w-50, y:y+h-50, type:'crate', hp:20});
-    // Roof (Zone)
-    world.roofs.push({x, y, w, h, name});
-}
-
-/* --- LOOP --- */
 function loop() {
     gameTime += 0.05;
     update();
@@ -283,7 +243,9 @@ function loop() {
 }
 
 function update() {
-    // Movement
+    // FIX BLACK SCREEN BUG
+    if(isNaN(player.x) || isNaN(player.y)) { player.x = 600; player.y = 1500; }
+
     let speed = 4;
     let dx = (input.d - input.a) * speed;
     let dy = (input.s - input.w) * speed;
@@ -295,110 +257,103 @@ function update() {
     cam.x = player.x - cvs.width/2;
     cam.y = player.y - cvs.height/2;
 
-    // AI (Deer)
+    // AI
     world.entities.forEach(e => {
         if(e.type === 'deer') {
             if(e.speed > 0) {
                 e.x += Math.cos(e.angle)*e.speed;
                 e.y += Math.sin(e.angle)*e.speed;
-                e.speed *= 0.96; // Friction
-                // Bounds
+                e.speed *= 0.96;
                 if(e.x < X_WATER) e.angle = 0; 
-            } else {
-                if(Math.random() < 0.01) { e.angle += (Math.random()-0.5); e.speed = 1.5; }
+            } else if(Math.random() < 0.01) { 
+                e.angle += (Math.random()-0.5); e.speed = 1.5; 
             }
         }
     });
 }
 
-/* --- RENDER --- */
 function draw() {
+    // Clear
     ctx.setTransform(1,0,0,1,0,0);
     ctx.fillStyle = '#111'; ctx.fillRect(0,0,cvs.width, cvs.height);
+    
     ctx.translate(-cam.x, -cam.y);
 
-    // 1. Water & Land
-    ctx.fillStyle = '#1565c0'; 
-    ctx.beginPath(); ctx.moveTo(cam.x, cam.y);
+    // Water & Land
+    ctx.fillStyle = '#1565c0'; ctx.fillRect(cam.x, cam.y, cvs.width, cvs.height); // Background water
+    ctx.fillStyle = '#33691e'; ctx.fillRect(X_WATER, 0, W_MAP, H_MAP); // Land
+
+    // Waves edge
+    ctx.fillStyle = '#42a5f5'; 
+    ctx.beginPath();
     for(let y=cam.y; y<cam.y+cvs.height; y+=20) {
-        ctx.lineTo(X_WATER + Math.sin(y*0.01 + gameTime)*20, y);
+        let x = X_WATER + Math.sin(y*0.02 + gameTime)*10;
+        ctx.lineTo(x, y);
     }
-    ctx.lineTo(cam.x, cam.y+cvs.height); ctx.fill();
+    ctx.lineTo(X_WATER-50, cam.y+cvs.height);
+    ctx.lineTo(X_WATER-50, cam.y);
+    ctx.fill();
 
-    ctx.fillStyle = '#33691e'; ctx.fillRect(X_WATER, 0, W_MAP, H_MAP);
-
-    // 2. Road
+    // Road
     if(world.roads.length > 0) {
-        ctx.lineWidth = 90; ctx.strokeStyle = '#555'; ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.lineWidth = 80; ctx.strokeStyle = '#555'; ctx.lineCap='round'; ctx.lineJoin='round';
         ctx.beginPath(); ctx.moveTo(world.roads[0].x, world.roads[0].y);
         for(let p of world.roads) ctx.lineTo(p.x, p.y);
         ctx.stroke();
+        
+        ctx.lineWidth = 2; ctx.strokeStyle = '#777'; ctx.setLineDash([20,20]); ctx.stroke(); ctx.setLineDash([]);
     }
 
-    // 3. Static (Floors/Walls)
-    world.static.forEach(s => {
-        if(s.type==='floor') { ctx.fillStyle='#222'; ctx.fillRect(s.x, s.y, s.w, s.h); }
-    });
-
-    // 4. Entities (Sorted by Y)
+    // Objects
     let list = [...world.entities, {type:'player', y:player.y}];
-    world.static.forEach(s => { if(s.type==='wall') list.push({type:'wall', obj:s, y:s.y+s.h}); });
     list.sort((a,b)=>a.y - b.y);
 
     list.forEach(e => {
         if(e.type==='player') drawPlayer();
-        else if(e.type==='wall') { ctx.fillStyle='#444'; ctx.fillRect(e.obj.x, e.obj.y, e.obj.w, e.obj.h); ctx.strokeStyle='#000'; ctx.strokeRect(e.obj.x, e.obj.y, e.obj.w, e.obj.h); }
         else drawEntity(e);
-    });
-
-    // 5. Roofs
-    world.roofs.forEach(r => {
-        let cx = r.x + r.w/2, cy = r.y + r.h/2;
-        if(Math.hypot(player.x-cx, player.y-cy) > 250) {
-            ctx.fillStyle = '#1a1a1a'; ctx.fillRect(r.x, r.y, r.w, r.h);
-            ctx.fillStyle = 'white'; ctx.font='20px sans-serif'; ctx.fillText(r.name, cx-40, cy);
-        }
     });
 }
 
 function drawEntity(e) {
     if(e.shake) { ctx.save(); ctx.translate(Math.random()*4-2, 0); e.shake--; }
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(e.x, e.y+5, 15*(e.scale||1), 6, 0, 0, 6.28); ctx.fill();
+    // Тень (Исправлено, чтобы не было черных кругов)
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; 
+    ctx.beginPath(); ctx.ellipse(e.x, e.y+5, 15*(e.scale||1), 7, 0, 0, 6.28); ctx.fill();
 
     if(e.type === 'tree') {
         let s = e.scale || 1;
-        ctx.fillStyle = '#3e2723'; ctx.fillRect(e.x-5*s, e.y-10*s, 10*s, 20*s);
-        // Layered Leaves
+        ctx.fillStyle = '#4e342e'; ctx.fillRect(e.x-5*s, e.y-10*s, 10*s, 20*s);
         ctx.fillStyle = '#1b5e20';
         ctx.beginPath(); ctx.moveTo(e.x-30*s, e.y-5*s); ctx.lineTo(e.x, e.y-60*s); ctx.lineTo(e.x+30*s, e.y-5*s); ctx.fill();
         ctx.fillStyle = '#2e7d32';
         ctx.beginPath(); ctx.moveTo(e.x-25*s, e.y-30*s); ctx.lineTo(e.x, e.y-80*s); ctx.lineTo(e.x+25*s, e.y-30*s); ctx.fill();
     }
     else if(e.type.includes('stone') || e.type.includes('iron') || e.type.includes('sulfur')) {
-        let c = e.type==='iron'?'#5d4037':(e.type==='sulfur'?'#fbc02d':'#9e9e9e');
-        ctx.fillStyle = c; ctx.beginPath();
-        for(let i=0; i<7; i++) {
-            let a = (i/7)*6.28;
-            let r = 20 + Math.sin(e.seed + i)*8;
-            ctx.lineTo(e.x + Math.cos(a)*r, e.y-10 + Math.sin(a)*r);
-        }
-        ctx.fill(); ctx.stroke();
+        // Простая отрисовка камней без багов
+        let color = '#9e9e9e'; // Stone
+        if(e.type === 'iron') color = '#5d4037'; // Brown
+        if(e.type === 'sulfur') color = '#fbc02d'; // Yellow
+        
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(e.x, e.y-10, 20*(e.scale||1), 0, 6.28); ctx.fill();
+        
+        // Блик
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.beginPath(); ctx.arc(e.x-5, e.y-20, 8, 0, 6.28); ctx.fill();
     }
     else if(e.type === 'barrel') {
-        ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.arc(e.x, e.y-15, 15, 0, 6.28); ctx.fill(); ctx.stroke();
-    }
-    else if(e.type === 'crate') {
-        ctx.fillStyle = '#795548'; ctx.fillRect(e.x-20, e.y-20, 40, 40); ctx.strokeRect(e.x-20, e.y-20, 40, 40);
+        ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.arc(e.x, e.y-15, 15, 0, 6.28); ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
     }
     else if(e.type === 'deer') {
         ctx.fillStyle = '#795548';
         ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.angle);
-        ctx.fillRect(-15, -8, 30, 16); // Body
-        ctx.beginPath(); ctx.arc(15, 0, 8, 0, 6.28); ctx.fill(); // Head
-        ctx.fillStyle = '#d7ccc8'; ctx.beginPath(); ctx.moveTo(15,-2); ctx.lineTo(25,-10); ctx.stroke(); // Horns
-        ctx.beginPath(); ctx.moveTo(15,2); ctx.lineTo(25,10); ctx.stroke(); 
+        ctx.fillRect(-15, -8, 30, 16); 
+        ctx.beginPath(); ctx.arc(15, 0, 8, 0, 6.28); ctx.fill(); 
+        ctx.strokeStyle = '#d7ccc8'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(15,-2); ctx.lineTo(25,-10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(15,2); ctx.lineTo(25,10); ctx.stroke();
         ctx.restore();
     }
 
@@ -407,34 +362,29 @@ function drawEntity(e) {
 
 function drawPlayer() {
     ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
-    // Body
     ctx.fillStyle = '#ffcc80'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, 6.28); ctx.fill();
-    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.28); ctx.fill(); // Vest
-    // Hands
+    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.28); ctx.fill();
     ctx.fillStyle = '#ffcc80'; 
     ctx.beginPath(); ctx.arc(12, 12, 5, 0, 6.28); ctx.fill();
     ctx.beginPath(); ctx.arc(12, -12, 5, 0, 6.28); ctx.fill();
-    // Item
+    
     let h = player.belt[player.beltIdx];
     if(h) {
-        ctx.fillStyle = '#fff';
-        ctx.font = '20px sans-serif'; ctx.fillText(ITEMS[h.id].icon, 20, 5);
+        ctx.fillStyle = '#fff'; ctx.font = '20px serif'; ctx.fillText(ITEMS[h.id].icon, 15, 8);
     }
     ctx.restore();
 }
 
-/* --- INTERACTION --- */
+/* --- LOGIC --- */
 window.onmousedown = (e) => {
     if(e.button === 0) {
-        // 1. DRAG START Check
         let slot = e.target.closest('.slot');
         if(slot) return startDrag(e, slot);
-
         if(e.target.closest('.panel')) return;
 
-        // 2. ATTACK
-        let hand = player.belt[player.beltIdx];
+        // Attack
         let wx = cam.x + e.clientX, wy = cam.y + e.clientY;
+        let hand = player.belt[player.beltIdx];
         
         world.entities.forEach((ent, i) => {
             if(Math.hypot(ent.x-wx, ent.y-wy) < 50 && Math.hypot(player.x-ent.x, player.y-ent.y) < 200) {
@@ -442,89 +392,76 @@ window.onmousedown = (e) => {
                 if(hand && ITEMS[hand.id].bonus === ent.type) dmg *= 2;
                 
                 ent.hp -= dmg; ent.shake = 10;
-                
                 if(ent.type === 'deer') { ent.speed = 5; ent.angle = Math.atan2(ent.y-player.y, ent.x-player.x); }
 
                 if(ent.hp <= 0) {
                     world.entities.splice(i, 1);
                     if(ent.type==='tree') addItem('wood', 50);
                     if(ent.type==='stone') addItem('stone', 30);
-                    if(ent.type==='iron') addItem('iron_ore', 15);
-                    if(ent.type==='sulfur') addItem('sulfur_ore', 15);
+                    if(ent.type==='iron') addItem('iron_ore', 20);
+                    if(ent.type==='sulfur') addItem('sulfur_ore', 20);
                     if(ent.type==='barrel') { addItem('scrap', 2); addItem('comp', 1); }
-                    if(ent.type==='crate') { addItem('scrap', 10); addItem('metal_frags', 5); }
-                    if(ent.type==='deer') { addItem('leather', 3); addItem('fat', 2); addItem('food', 4); }
+                    if(ent.type==='deer') { addItem('leather', 2); addItem('fat', 2); addItem('food', 3); }
                 }
             }
         });
     }
 }
 
-/* --- DRAG AND DROP (FIXED) --- */
+/* --- DRAG & DROP --- */
 function startDrag(e, slot) {
     let parent = slot.parentElement;
     let isBelt = parent.id === 'hotbar';
-    
-    // Find index
     let idx = Array.from(parent.children).indexOf(slot);
     let arr = isBelt ? player.belt : player.inv;
-    let item = arr[idx];
-
-    if(!item) return; // Nothing to drag
-
-    dragObj = { active: true, item: item, fromIdx: idx, fromType: isBelt?'belt':'inv' };
     
-    let ghost = document.getElementById('drag-ghost');
-    ghost.innerText = ITEMS[item.id].icon;
-    ghost.style.display = 'flex';
-    ghost.style.left = e.clientX + 'px';
-    ghost.style.top = e.clientY + 'px';
+    if(!arr[idx]) return;
+
+    dragObj = { active: true, item: arr[idx], fromIdx: idx, fromType: isBelt?'belt':'inv' };
+    
+    let g = document.getElementById('drag-ghost');
+    g.querySelector('.slot-icon').innerText = ITEMS[arr[idx].id].icon;
+    g.style.display = 'flex';
+    g.style.left = e.clientX+'px'; g.style.top = e.clientY+'px';
 }
 
-window.onmousemove = (e) => {
+window.onmousemove = e => {
     input.mx = e.clientX; input.my = e.clientY;
     if(dragObj.active) {
         let g = document.getElementById('drag-ghost');
-        g.style.left = e.clientX + 'px';
-        g.style.top = e.clientY + 'px';
+        g.style.left = e.clientX+'px'; g.style.top = e.clientY+'px';
     }
 }
 
-window.onmouseup = (e) => {
+window.onmouseup = e => {
     if(dragObj.active) {
         let slot = e.target.closest('.slot');
         if(slot) {
             let parent = slot.parentElement;
             let isBelt = parent.id === 'hotbar';
             let toIdx = Array.from(parent.children).indexOf(slot);
+            let fromArr = dragObj.fromType=='belt'?player.belt:player.inv;
+            let toArr = isBelt?player.belt:player.inv;
             
-            let fromArr = dragObj.fromType === 'belt' ? player.belt : player.inv;
-            let toArr = isBelt ? player.belt : player.inv;
-
-            // Swap logic
-            let temp = toArr[toIdx];
+            let tmp = toArr[toIdx];
             toArr[toIdx] = fromArr[dragObj.fromIdx];
-            fromArr[dragObj.fromIdx] = temp;
+            fromArr[dragObj.fromIdx] = tmp;
         }
-        
         dragObj.active = false;
         document.getElementById('drag-ghost').style.display = 'none';
         updateUI();
     }
 }
 
-/* --- INVENTORY & CRAFT --- */
+/* --- INVENTORY --- */
 function addItem(id, count) {
     let txt = `+${count} ${ITEMS[id].name}`;
-    // 1. Stack
     for(let arr of [player.belt, player.inv]) {
         for(let s of arr) if(s && s.id==id) { s.count+=count; notify(txt); updateUI(); return; }
     }
-    // 2. Empty Belt
     for(let i=0; i<6; i++) if(!player.belt[i]) { player.belt[i]={id,count}; notify(txt); updateUI(); return; }
-    // 3. Empty Inv
     for(let i=0; i<24; i++) if(!player.inv[i]) { player.inv[i]={id,count}; notify(txt); updateUI(); return; }
-    notify("Нет места!");
+    notify("Нет места");
 }
 
 function notify(t) {
@@ -534,36 +471,31 @@ function notify(t) {
 }
 
 function updateUI() {
-    // Belt
-    let hb = document.getElementById('hotbar'); hb.innerHTML = '';
-    player.belt.forEach((s, i) => renderSlot(hb, s, i, true));
+    let hb = document.getElementById('hotbar'); hb.innerHTML='';
+    player.belt.forEach((s,i)=>renderSlot(hb, s, i, true));
+    
+    let inv = document.getElementById('inv-grid'); inv.innerHTML='';
+    player.inv.forEach((s,i)=>renderSlot(inv, s, i, false));
 
-    // Inv
-    let inv = document.getElementById('inv-grid'); inv.innerHTML = '';
-    player.inv.forEach((s, i) => renderSlot(inv, s, i, false));
-
-    // Craft
-    let cl = document.getElementById('craft-list'); cl.innerHTML = '';
+    let cl = document.getElementById('craft-list'); cl.innerHTML='';
     RECIPES.forEach(r => {
-        let row = document.createElement('div'); row.className='craft-row';
+        let d = document.createElement('div'); d.className='craft-row';
         let cost = Object.keys(r.cost).map(k=>`${ITEMS[k].icon}${r.cost[k]}`).join(' ');
-        row.innerHTML = `<span>${ITEMS[r.id].name}</span><span class="craft-req">${cost}</span>`;
-        row.onclick = () => {
-            for(let k in r.cost) if(count(k)<r.cost[k]) return notify("Мало ресурсов");
+        d.innerHTML = `<span>${ITEMS[r.id].name}</span><span class="craft-req">${cost}</span>`;
+        d.onclick = () => {
+            for(let k in r.cost) if(count(k)<r.cost[k]) return notify("Надо ресурсы");
             for(let k in r.cost) take(k, r.cost[k]);
             addItem(r.id, r.out||1);
         };
-        cl.appendChild(row);
+        cl.appendChild(d);
     });
 }
 
-function renderSlot(parent, item, idx, isBelt) {
+function renderSlot(p, item, idx, isBelt) {
     let d = document.createElement('div'); d.className='slot';
-    if(isBelt && idx === player.beltIdx) d.classList.add('active');
-    if(item) {
-        d.innerHTML = `<div class="slot-icon">${ITEMS[item.id].icon}</div><div class="slot-count">${item.count}</div>`;
-    }
-    parent.appendChild(d);
+    if(isBelt && idx===player.beltIdx) d.classList.add('active');
+    if(item) d.innerHTML = `<div class="slot-icon">${ITEMS[item.id].icon}</div><div class="slot-count">${item.count}</div>`;
+    p.appendChild(d);
 }
 
 function count(id) { let c=0; [...player.belt, ...player.inv].forEach(s=>{if(s&&s.id==id)c+=s.count}); return c; }
@@ -577,7 +509,6 @@ function take(id, n) {
     updateUI();
 }
 
-/* --- INPUT --- */
 window.onkeydown = e => {
     if(e.code=='KeyW') input.w=1; if(e.code=='KeyS') input.s=1;
     if(e.code=='KeyA') input.a=1; if(e.code=='KeyD') input.d=1;
