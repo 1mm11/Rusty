@@ -7,170 +7,183 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; }
-        .box { max-width: 850px; margin: auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
-        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; }
+        .box { max-width: 900px; margin: auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
+        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; letter-spacing: 1px; }
         input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
-        button { cursor: pointer; font-weight: bold; background: #238636; border: none; }
+        button { cursor: pointer; font-weight: bold; background: #238636; border: none; transition: 0.2s; }
         button:hover { background: #2ea043; }
-        .search-bar { border: 2px solid #58a6ff; margin-bottom: 20px; font-size: 1.1em; }
+        .search-bar { border: 2px solid #58a6ff; font-size: 1.1em; margin-bottom: 20px; }
         .hidden { display: none; }
-        .player-card { border: 1px solid #30363d; padding: 15px; margin-top: 10px; display: flex; align-items: center; background: #21262d; border-radius: 8px; position: relative; }
-        .player-card img { width: 90px; height: 90px; border-radius: 6px; object-fit: cover; margin-right: 20px; border: 2px solid #30363d; }
+        .player-card { border: 1px solid #30363d; padding: 15px; margin-top: 10px; display: flex; align-items: center; background: #21262d; border-radius: 8px; }
+        .player-card img { width: 80px; height: 80px; border-radius: 6px; object-fit: cover; margin-right: 20px; border: 2px solid #30363d; }
         .card-info { flex-grow: 1; }
-        .admin-btns { display: flex; flex-direction: column; gap: 5px; }
-        .btn-edit { background: #8957e5; padding: 5px 10px; width: auto; font-size: 12px; }
-        .btn-del { background: #da3633; padding: 5px 10px; width: auto; font-size: 12px; }
-        .file-label { display: block; margin-top: 10px; color: #8b949e; font-size: 0.9em; }
+        .edit-controls { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+        .mini-btn { width: 35px; height: 35px; padding: 0; line-height: 35px; background: #30363d; border: 1px solid #58a6ff; }
+        .save-fast { background: #8957e5; width: auto; padding: 5px 15px; font-size: 12px; margin-left: 10px; }
+        .status-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #388e3c; color: white; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>КОД</h2>
+    <h2 id="main-title">КОД ДОСТУПА</h2>
     
     <div id="login">
-        <input type="password" id="p_code" placeholder="Введите код доступа...">
-        <button onclick="login()">ВОЙТИ</button>
+        <input type="password" id="p_code" placeholder="Введите код доступа (Просмотр / Судья / Админ)...">
+        <button onclick="login()">АВТОРИЗОВАТЬСЯ</button>
     </div>
 
-    <div id="view" class="hidden">
-        <input type="text" class="search-bar" id="search-view" placeholder="🔍 Поиск по ID..." oninput="load(false)">
-        <div id="list-public"></div>
-        <button onclick="location.reload()" style="background: #444; margin-top: 20px;">ВЫХОД</button>
-    </div>
+    <div id="app-content" class="hidden">
+        <div id="status-display" class="status-tag">Режим: Просмотр</div>
+        <input type="text" class="search-bar" id="search" placeholder="🔍 Поиск по ID игрока..." oninput="renderList()">
+        
+        <div id="full-admin-form" class="hidden">
+            <h3 id="form-title">РЕГИСТРАЦИЯ / ПОЛНАЯ ПРАВКА</h3>
+            <input type="hidden" id="edit-id">
+            <input type="text" id="n" placeholder="Никнейм">
+            <input type="text" id="id_code" placeholder="ID (например: 777)">
+            <input type="file" id="file-input" accept="image/*">
+            <input type="hidden" id="photo-data">
+            <input type="text" id="t" placeholder="Срок заключения">
+            <button onclick="saveFull()">СОХРАНИТЬ НОВОГО / ОБНОВИТЬ ВСЁ</button>
+            <hr>
+        </div>
 
-    <div id="add" class="hidden">
-        <h3 id="form-title">УПРАВЛЕНИЕ ЗАПИСЬЮ</h3>
-        <input type="hidden" id="edit-id">
-        <input type="text" id="n" placeholder="Никнейм">
-        <input type="text" id="id_code" placeholder="Идентификационный ID (например: 001)">
-        
-        <label class="file-label">Загрузить фото игрока:</label>
-        <input type="file" id="file-input" accept="image/*">
-        <input type="hidden" id="photo-data"> <input type="number" id="s" placeholder="Судимости">
-        <input type="number" id="k" placeholder="Казни">
-        <input type="text" id="t" placeholder="Срок">
-        <textarea id="v" placeholder="Нарушения"></textarea>
-        
-        <button id="save-btn" onclick="save()">СОХРАНИТЬ</button>
-        <button onclick="resetForm()" style="background:#444">ОЧИСТИТЬ</button>
-        
-        <hr style="border: 1px solid #30363d; margin: 25px 0;">
-        <input type="text" class="search-bar" id="search-admin" placeholder="🔍 Поиск по ID для правки..." oninput="load(true)">
-        <div id="list-admin"></div>
-        <button onclick="location.reload()" style="background: #da3633; margin-top: 20px;">ВЫЙТИ</button>
+        <div id="player-list"></div>
+        <button onclick="location.reload()" style="background: #da3633; margin-top: 20px;">ВЫЙТИ ИЗ СИСТЕМЫ</button>
     </div>
 </div>
 
 <script>
     const firebaseConfig = {
-        apiKey: "ВСТАВЬ_СВОЙ_API_KEY", 
+        apiKey: "ТВОЙ_API_KEY", 
         databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
         projectId: "dfdf-ba19f",
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    let currentMode = ''; // 'view', 'judge', 'admin'
 
-    // Обработка файла (конвертация в текст)
+    // Конвертация фото
     document.getElementById('file-input').addEventListener('change', function(e) {
         const file = e.target.files[0];
         const reader = new FileReader();
-        reader.onloadend = function() {
-            document.getElementById('photo-data').value = reader.result;
-        }
+        reader.onloadend = () => document.getElementById('photo-data').value = reader.result;
         if (file) reader.readAsDataURL(file);
     });
 
     function login() {
         const c = document.getElementById('p_code').value;
-        if (c === '5389') {
-            document.getElementById('login').classList.add('hidden');
-            document.getElementById('view').classList.remove('hidden');
-            load(false);
-        } else if (c === '4583') {
-            document.getElementById('login').classList.add('hidden');
-            document.getElementById('add').classList.remove('hidden');
-            load(true);
-        } else { alert("ОТКАЗАНО"); }
+        const status = document.getElementById('status-display');
+        
+        if (c === '5389') { currentMode = 'view'; status.innerText = "РЕЖИМ: ПРОСМОТР"; }
+        else if (c === '3956') { currentMode = 'judge'; status.innerText = "РЕЖИМ: СУДЬЯ (ПРАВКА ДЕЛ)"; status.style.background = "#8957e5"; }
+        else if (c === '4583') { currentMode = 'admin'; status.innerText = "РЕЖИМ: АДМИНИСТРАТОР"; status.style.background = "#da3633"; document.getElementById('full-admin-form').classList.remove('hidden'); }
+        else { alert("НЕВЕРНЫЙ КОД"); return; }
+
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('app-content').classList.remove('hidden');
+        renderList();
     }
 
-    function save() {
-        const key = document.getElementById('edit-id').value;
-        const data = {
-            n: document.getElementById('n').value,
-            id_code: document.getElementById('id_code').value,
-            img: document.getElementById('photo-data').value || 'https://via.placeholder.com/90',
-            s: document.getElementById('s').value,
-            k: document.getElementById('k').value,
-            t: document.getElementById('t').value,
-            v: document.getElementById('v').value
-        };
-
-        if (key) db.ref('players/' + key).set(data).then(() => { alert("Обновлено!"); resetForm(); });
-        else db.ref('players').push(data).then(() => { alert("Добавлено!"); resetForm(); });
-    }
-
-    function load(isAdmin) {
-        const searchQuery = document.getElementById(isAdmin ? 'search-admin' : 'search-view').value.toLowerCase();
-        db.ref('players').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const container = document.getElementById(isAdmin ? 'list-admin' : 'list-public');
+    function renderList() {
+        const search = document.getElementById('search').value.toLowerCase();
+        db.ref('players').on('value', (snap) => {
+            const data = snap.val();
+            const container = document.getElementById('player-list');
             container.innerHTML = '';
 
             for (let id in data) {
                 const p = data[id];
-                // Фильтр по ID
-                if (p.id_code.toLowerCase().includes(searchQuery)) {
-                    container.innerHTML += `
+                if (p.id_code.toLowerCase().includes(search)) {
+                    let html = `
                         <div class="player-card">
-                            <img src="${p.img}">
+                            <img src="${p.img || 'https://via.placeholder.com/80'}">
                             <div class="card-info">
                                 <b>${p.n}</b> [ID: ${p.id_code}]<br>
-                                <small>Срок: ${p.t} | Судимости: ${p.s} | Казни: ${p.k}</small><br>
-                                <span style="font-size: 12px; color: #8b949e;">${p.v}</span>
+                                <small>Срок: ${p.t || 'Нет'}</small> | 
+                                <span>Судимостей: <b>${p.s || 0}</b></span> | 
+                                <span>Казней: <b>${p.k || 0}</b></span>
+                                <div style="color: #ffa657; font-size: 13px;">Преступления: ${p.v || 'Чист'}</div>
+                    `;
+
+                    // Если зашел Судья (3956) или Админ (4583)
+                    if (currentMode === 'judge' || currentMode === 'admin') {
+                        html += `
+                            <div class="edit-controls">
+                                Судимости: 
+                                <button class="mini-btn" onclick="updateVal('${id}', 's', -1)">-</button>
+                                <button class="mini-btn" onclick="updateVal('${id}', 's', 1)">+</button>
+                                | Казни: 
+                                <button class="mini-btn" onclick="updateVal('${id}', 'k', -1)">-</button>
+                                <button class="mini-btn" onclick="updateVal('${id}', 'k', 1)">+</button>
+                                <button class="save-fast" onclick="editCrimes('${id}', '${p.v || ''}')">ИЗМЕНИТЬ ПРИСТУПЛЕНИЯ</button>
                             </div>
-                            ${isAdmin ? `
-                                <div class="admin-btns">
-                                    <button class="btn-edit" onclick="editPlayer('${id}')">ПРАВКА</button>
-                                    <button class="btn-del" onclick="deletePlayer('${id}')">УДАЛИТЬ</button>
-                                </div>
-                            ` : ''}
-                        </div>`;
+                        `;
+                    }
+                    
+                    // Если зашел Админ (4583)
+                    if (currentMode === 'admin') {
+                        html += `
+                            <div style="margin-top:10px;">
+                                <button class="save-fast" style="background:#444" onclick="fillForm('${id}')">ПОЛНАЯ ПРАВКА</button>
+                                <button class="save-fast" style="background:#da3633" onclick="deleteP('${id}')">УДАЛИТЬ</button>
+                            </div>
+                        `;
+                    }
+
+                    html += `</div></div>`;
+                    container.innerHTML += html;
                 }
             }
         });
     }
 
-    function editPlayer(id) {
-        db.ref('players/' + id).once('value').then((snap) => {
-            const p = snap.val();
+    // Быстрое изменение чисел (+/-)
+    function updateVal(id, field, delta) {
+        const ref = db.ref('players/' + id + '/' + field);
+        ref.transaction((current) => (current || 0) + delta);
+    }
+
+    // Быстрое изменение текста преступлений
+    function editCrimes(id, oldText) {
+        const newText = prompt("Введите обновленный список преступлений:", oldText);
+        if (newText !== null) db.ref('players/' + id + '/v').set(newText);
+    }
+
+    // Удаление
+    function deleteP(id) { if(confirm("Удалить?")) db.ref('players/'+id).remove(); }
+
+    // Полное сохранение (для админа)
+    function saveFull() {
+        const key = document.getElementById('edit-id').value;
+        const data = {
+            n: document.getElementById('n').value,
+            id_code: document.getElementById('id_code').value,
+            img: document.getElementById('photo-data').value || 'https://via.placeholder.com/80',
+            t: document.getElementById('t').value,
+            s: 0, k: 0, v: "Новое дело" // Начальные данные для нового
+        };
+        if(key) {
+             // При обновлении админом не затираем судимости и казни
+             db.ref('players/' + key).update({ n: data.n, id_code: data.id_code, img: data.img, t: data.t });
+        } else {
+             db.ref('players').push(data);
+        }
+        alert("Готово!"); location.reload();
+    }
+
+    function fillForm(id) {
+        db.ref('players/' + id).once('value').then(s => {
+            const p = s.val();
             document.getElementById('edit-id').value = id;
             document.getElementById('n').value = p.n;
             document.getElementById('id_code').value = p.id_code;
-            document.getElementById('photo-data').value = p.img;
-            document.getElementById('s').value = p.s;
-            document.getElementById('k').value = p.k;
             document.getElementById('t').value = p.t;
-            document.getElementById('v').value = p.v;
-            document.getElementById('form-title').innerText = "РЕДАКТИРОВАНИЕ";
-            window.scrollTo(0,0);
+            document.getElementById('photo-data').value = p.img;
+            document.getElementById('form-title').innerText = "РЕДАКТИРОВАНИЕ: " + p.n;
         });
-    }
-
-    function deletePlayer(id) { if (confirm("Удалить?")) db.ref('players/' + id).remove(); }
-    
-    function resetForm() {
-        document.getElementById('edit-id').value = '';
-        document.getElementById('photo-data').value = '';
-        document.getElementById('file-input').value = '';
-        document.getElementById('n').value = '';
-        document.getElementById('id_code').value = '';
-        document.getElementById('s').value = '';
-        document.getElementById('k').value = '';
-        document.getElementById('t').value = '';
-        document.getElementById('v').value = '';
-        document.getElementById('form-title').innerText = "УПРАВЛЕНИЕ ЗАПИСЬЮ";
     }
 </script>
 </body>
