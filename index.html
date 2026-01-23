@@ -2,35 +2,26 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>БАЗА ДАННЫХ СНС </title>
+    <title>База данных СНС</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; margin: 0; }
-        .box { max-width: 800px; margin: 40px auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; margin-bottom: 20px; }
+        .box { max-width: 850px; margin: 20px auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
+        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; }
         input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
-        button { cursor: pointer; font-weight: bold; background: #238636; border: none; transition: 0.2s; }
+        button { cursor: pointer; font-weight: bold; background: #238636; border: none; }
         button:hover { background: #2ea043; }
-        
-        .search-container { position: sticky; top: 0; background: #161b22; padding: 10px 0; z-index: 10; border-bottom: 1px solid #30363d; margin-bottom: 15px; }
-        .search-bar { border: 2px solid #58a6ff; font-size: 1.1em; }
-        
+        .search-bar { border: 2px solid #58a6ff; font-size: 1.1em; margin-bottom: 20px; }
         .hidden { display: none; }
-        
-        /* Карточка игрока */
-        .player-card { border: 1px solid #30363d; padding: 20px; margin-top: 15px; display: flex; gap: 20px; background: #21262d; border-radius: 8px; align-items: flex-start; }
-        .player-card img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; border: 2px solid #30363d; background: #0d1117; }
+        .player-card { border: 1px solid #30363d; padding: 15px; margin-top: 15px; display: flex; gap: 20px; background: #21262d; border-radius: 8px; }
+        .player-card img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; border: 2px solid #58a6ff; }
         .card-info { flex: 1; }
-        .card-info b { color: #58a6ff; font-size: 1.2em; }
-        
-        /* Кнопки управления */
-        .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #30363d; }
-        .mini-btn { width: 40px; height: 35px; background: #30363d; color: #58a6ff; border: 1px solid #58a6ff; }
-        .btn-blue { background: #8957e5; width: auto; padding: 5px 15px; font-size: 13px; }
-        .btn-red { background: #da3633; width: auto; padding: 5px 15px; font-size: 13px; }
-        
-        .mode-tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; background: #30363d; }
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #30363d; }
+        .mini-btn { width: 50px; height: 35px; background: #30363d; color: #58a6ff; border: 1px solid #58a6ff; font-size: 12px; }
+        .btn-action { background: #8957e5; width: auto; padding: 5px 15px; font-size: 12px; }
+        .btn-del { background: #da3633; width: auto; padding: 5px 15px; font-size: 12px; }
+        .mode-tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; background: #30363d; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -39,37 +30,31 @@
     <h2>КОД ДОСТУПА</h2>
     
     <div id="login-screen">
-        <input type="password" id="p_code" placeholder="Введите код доступа...">
-        <button onclick="auth()">АВТОРИЗОВАТЬСЯ</button>
+        <input type="password" id="p_code" placeholder="Код доступа...">
+        <button onclick="auth()">ВОЙТИ</button>
     </div>
 
     <div id="main-ui" class="hidden">
         <div id="current-mode" class="mode-tag">Режим: Просмотр</div>
-        
-        <div class="search-container">
-            <input type="text" class="search-bar" id="search-input" placeholder="🔍 Поиск по ID игрока..." oninput="renderData()">
-        </div>
+        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Поиск по ID..." oninput="renderData()">
 
         <div id="admin-form" class="hidden">
-            <h3 style="color: #f85149">РЕГИСТРАЦИЯ НОВОГО ЗАКЛЮЧЕННОГО</h3>
             <input type="text" id="reg-name" placeholder="Никнейм">
-            <input type="text" id="reg-id" placeholder="ID (например: 105)">
-            <input type="text" id="reg-term" placeholder="Срок (например: 5 лет)">
-            <label style="font-size: 12px; color: #8b949e;">Загрузить фото:</label>
+            <input type="text" id="reg-id" placeholder="ID игрока">
+            <input type="text" id="reg-term" placeholder="Текущий срок">
+            <label style="font-size: 12px;">Фото профиля:</label>
             <input type="file" id="file-picker" accept="image/*">
             <input type="hidden" id="img-base64">
-            <button onclick="createNew()">ДОБАВИТЬ В БАЗУ</button>
-            <hr style="border-color: #30363d; margin: 20px 0;">
+            <button onclick="createNew()">СОЗДАТЬ ДЕЛО</button>
+            <hr style="border-color: #30363d;">
         </div>
 
         <div id="player-list"></div>
-
-        <button onclick="location.reload()" style="background: #30363d; margin-top: 30px;">ВЫЙТИ ИЗ СИСТЕМЫ</button>
+        <button onclick="location.reload()" style="background: #30363d; margin-top: 20px;">ВЫХОД</button>
     </div>
 </div>
 
 <script>
-    // КОНФИГУРАЦИЯ
     const firebaseConfig = {
         apiKey: "ТВОЙ_API_KEY", 
         databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
@@ -78,9 +63,8 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    let userRole = 'view'; 
+    let userRole = 'view';
 
-    // Логика фото
     document.getElementById('file-picker').addEventListener('change', function(e) {
         const reader = new FileReader();
         reader.onload = () => document.getElementById('img-base64').value = reader.result;
@@ -90,16 +74,13 @@
     function auth() {
         const code = document.getElementById('p_code').value;
         const tag = document.getElementById('current-mode');
-        
-        if (code === '5389') { userRole = 'view'; tag.innerText = "РЕЖИМ: ПРОСМОТР"; }
-        else if (code === '3956') { userRole = 'judge'; tag.innerText = "РЕЖИМ: СУДЬЯ"; tag.style.color = "#8957e5"; }
+        if (code === '5389') { userRole = 'view'; }
+        else if (code === '3956') { userRole = 'judge'; tag.style.color = "#8957e5"; tag.innerText = "РЕЖИМ: СУДЬЯ"; }
         else if (code === '4583') { 
             userRole = 'admin'; 
-            tag.innerText = "РЕЖИМ: АДМИНИСТРАТОР"; 
-            tag.style.color = "#f85149";
-            document.getElementById('admin-form').classList.remove('hidden'); 
-        } else { alert("ДОСТУП ЗАКРЫТ"); return; }
-
+            tag.style.color = "#f85149"; tag.innerText = "РЕЖИМ: АДМИН";
+            document.getElementById('admin-form').classList.remove('hidden');
+        } else { alert("ОШИБКА"); return; }
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
         renderData();
@@ -111,7 +92,6 @@
             const list = document.getElementById('player-list');
             list.innerHTML = '';
             const data = snap.val();
-
             for (let key in data) {
                 const p = data[key];
                 if (p.id_code.toLowerCase().includes(query)) {
@@ -120,25 +100,22 @@
                             <img src="${p.img || 'https://via.placeholder.com/100'}">
                             <div class="card-info">
                                 <b>${p.n}</b> [ID: ${p.id_code}]<br>
-                                <small>Срок: ${p.t || 'Не указан'}</small> | 
-                                Судимости: <b>${p.s || 0}</b> | Казни: <b>${p.k || 0}</b>
-                                <div style="color: #ffa657; font-size: 13px; margin-top: 5px;">Нарушения: ${p.v || 'Нет'}</div>
+                                <small>Срок: ${p.t || '—'}</small><br>
+                                Судимостей: <b>${p.s || 0}</b> | Казней: <b>${p.k || 0}</b> | <b>Отсидел: ${p.p || 0} раз</b>
+                                <div style="color: #ffa657; font-size: 13px; margin-top:5px;">Дело: ${p.v || 'Чисто'}</div>
                     `;
-
-                    // Кнопки для Судьи и Админа
                     if (userRole === 'judge' || userRole === 'admin') {
                         card += `
                             <div class="controls">
-                                <button class="mini-btn" onclick="modify('${key}', 's', 1)">S+</button>
-                                <button class="mini-btn" onclick="modify('${key}', 's', -1)">S-</button>
-                                <button class="mini-btn" onclick="modify('${key}', 'k', 1)">K+</button>
-                                <button class="mini-btn" onclick="modify('${key}', 'k', -1)">K-</button>
-                                <button class="btn-blue" onclick="editV('${key}', '${p.v || ''}')">ИЗМЕНИТЬ ДЕЛО</button>
-                                ${userRole === 'admin' ? `<button class="btn-red" onclick="removeP('${key}')">УДАЛИТЬ</button>` : ''}
+                                <button class="mini-btn" onclick="modify('${key}','s',1)">S+</button>
+                                <button class="mini-btn" onclick="modify('${key}','k',1)">K+</button>
+                                <button class="mini-btn" onclick="modify('${key}','p',1)" title="Добавить отсидку">ТЮРЬМА+</button>
+                                <button class="mini-btn" onclick="modify('${key}','p',-1)">P-</button>
+                                <button class="btn-action" onclick="editV('${key}','${p.v || ''}')">ИЗМЕНИТЬ ПРЕСТУПЛЕНИЯ</button>
+                                ${userRole === 'admin' ? `<button class="btn-del" onclick="removeP('${key}')">УДАЛИТЬ</button>` : ''}
                             </div>
                         `;
                     }
-
                     card += `</div></div>`;
                     list.innerHTML += card;
                 }
@@ -149,14 +126,13 @@
     function createNew() {
         const n = document.getElementById('reg-name').value;
         const id = document.getElementById('reg-id').value;
-        if(!n || !id) return alert("Заполни ник и ID!");
-        
+        if(!n || !id) return alert("Заполни поля!");
         database.ref('players').push({
             n: n, id_code: id, t: document.getElementById('reg-term').value,
             img: document.getElementById('img-base64').value,
-            s: 0, k: 0, v: "Новое дело открыто"
+            s: 0, k: 0, p: 0, v: "Новое дело"
         });
-        alert("Игрок добавлен!");
+        alert("Добавлено!");
     }
 
     function modify(key, field, val) {
@@ -164,14 +140,11 @@
     }
 
     function editV(key, old) {
-        const text = prompt("Список нарушений:", old);
+        const text = prompt("Опишите преступления:", old);
         if (text !== null) database.ref('players/' + key + '/v').set(text);
     }
 
-    function removeP(key) {
-        if(confirm("Удалить игрока?")) database.ref('players/' + key).remove();
-    }
+    function removeP(key) { if(confirm("Удалить?")) database.ref('players/' + key).remove(); }
 </script>
-
 </body>
 </html>
