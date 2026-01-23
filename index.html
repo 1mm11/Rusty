@@ -2,50 +2,61 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>БАЗА ДАННЫХ МВД</title>
+    <title>База данных СНС</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: 'Courier New', monospace; background-color: #0a0c10; color: #00ff41; padding: 20px; }
-        .box { max-width: 600px; margin: auto; background: #161b22; border: 2px solid #30363d; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,255,65,0.2); }
-        input, textarea, button { width: 100%; padding: 12px; margin: 5px 0; border-radius: 5px; border: 1px solid #00ff41; background: #0d1117; color: #00ff41; }
-        button { cursor: pointer; font-weight: bold; text-transform: uppercase; }
-        button:hover { background: #00ff41; color: #000; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; }
+        .box { max-width: 800px; margin: auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
+        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; }
+        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; background: #238636; border: none; transition: 0.3s; }
+        button:hover { background: #2ea043; }
         .hidden { display: none; }
-        .card { border: 1px solid #00ff41; padding: 15px; margin-top: 15px; display: flex; gap: 15px; align-items: center; }
-        .card img { width: 80px; height: 80px; border: 1px solid #00ff41; object-fit: cover; }
+        .admin-card { border: 1px solid #30363d; padding: 15px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: #21262d; }
+        .btn-edit { background: #8957e5; width: auto; padding: 5px 15px; margin: 0 5px; }
+        .btn-del { background: #da3633; width: auto; padding: 5px 15px; margin: 0 5px; }
+        .card-info { flex-grow: 1; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2 style="text-align: center;">ЦЕНТРАЛЬНЫЙ АРХИВ</h2>
+    <h2>СИСТЕМА УПРАВЛЕНИЯ ЗАКЛЮЧЕННЫМИ</h2>
     
     <div id="login">
-        <input type="password" id="p_code" placeholder="Введите код доступа...">
+        <input type="password" id="p_code" placeholder="Введите секретный код...">
         <button onclick="login()">АВТОРИЗАЦИЯ</button>
     </div>
 
     <div id="view" class="hidden">
-        <button onclick="location.reload()" style="background: #ff4444; color: white; border: none;">ВЫЙТИ</button>
-        <div id="list">Загрузка данных из облака...</div>
+        <button onclick="location.reload()" style="background: #444;">ВЫХОД</button>
+        <div id="list-public"></div>
     </div>
 
     <div id="add" class="hidden">
-        <input type="text" id="n" placeholder="Ник игрока">
-        <input type="text" id="id" placeholder="ID код">
+        <h3 id="form-title">ДОБАВИТЬ / ИЗМЕНИТЬ ИГРОКА</h3>
+        <input type="hidden" id="edit-id"> <input type="text" id="n" placeholder="Никнейм">
+        <input type="text" id="id_code" placeholder="Идентификационный ID">
         <input type="text" id="img" placeholder="Ссылка на фото (URL)">
         <input type="number" id="s" placeholder="Судимости">
         <input type="number" id="k" placeholder="Казни">
         <input type="text" id="t" placeholder="Срок">
-        <textarea id="v" placeholder="Нарушения"></textarea>
-        <button onclick="save()">ВНЕСТИ В БАЗУ</button>
+        <textarea id="v" placeholder="Список преступлений"></textarea>
+        <button id="save-btn" onclick="save()">СОХРАНИТЬ В ОБЛАКО</button>
+        <button onclick="resetForm()" style="background:#444">ОЧИСТИТЬ ФОРМУ</button>
+        <button onclick="location.reload()" style="background:#da3633; margin-top: 20px;">ВЫХОД</button>
+        
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #30363d;">
+        <h3>СПИСОК ДЛЯ РЕДАКТИРОВАНИЯ:</h3>
+        <div id="list-admin"></div>
     </div>
 </div>
 
 <script>
+    // --- НАСТРОЙКИ (ВСТАВЬ СВОЙ КЛЮЧ) ---
     const firebaseConfig = {
-        apiKey: "ВСТАВЬ_СВОЙ_API_KEY_ЗДЕСЬ", // Возьми в Project Settings
+        apiKey: "ТВОЙ_API_KEY", 
         databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
         projectId: "dfdf-ba19f",
     };
@@ -55,40 +66,116 @@
 
     function login() {
         const c = document.getElementById('p_code').value;
-        if (c === '5389') { document.getElementById('login').classList.add('hidden'); document.getElementById('view').classList.remove('hidden'); load(); }
-        else if (c === '4583') { document.getElementById('login').classList.add('hidden'); document.getElementById('add').classList.remove('hidden'); }
-        else { alert("НЕВЕРНЫЙ КОД"); }
+        if (c === '5389') {
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('view').classList.remove('hidden');
+            load(false);
+        } else if (c === '4583') {
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('add').classList.remove('hidden');
+            load(true);
+        } else {
+            alert("ОШИБКА ДОСТУПА");
+        }
     }
 
+    // Сохранение (и создание, и обновление)
     function save() {
+        const key = document.getElementById('edit-id').value;
         const data = {
             n: document.getElementById('n').value,
-            id: document.getElementById('id').value,
+            id_code: document.getElementById('id_code').value,
             img: document.getElementById('img').value || 'https://via.placeholder.com/80',
             s: document.getElementById('s').value,
             k: document.getElementById('k').value,
             t: document.getElementById('t').value,
             v: document.getElementById('v').value
         };
-        db.ref('players').push(data).then(() => { alert("Запись создана!"); location.reload(); });
+
+        if (key) {
+            // Если есть ключ, обновляем существующего
+            db.ref('players/' + key).set(data).then(() => {
+                alert("Данные обновлены!");
+                resetForm();
+            });
+        } else {
+            // Если ключа нет, создаем нового
+            db.ref('players').push(data).then(() => {
+                alert("Игрок добавлен!");
+                resetForm();
+            });
+        }
     }
 
-    function load() {
-        db.ref('players').on('value', (s) => {
-            const list = document.getElementById('list');
-            list.innerHTML = '';
-            s.forEach((child) => {
-                const p = child.val();
-                list.innerHTML += `<div class="card">
-                    <img src="${p.img}">
-                    <div>
-                        <b>${p.n}</b> [ID: ${p.id}]<br>
-                        Срок: ${p.t} | Судимостей: ${p.s} | Казней: ${p.k}<br>
-                        <i style="color: #888">${p.v}</i>
-                    </div>
-                </div>`;
-            });
+    // Загрузка данных
+    function load(isAdmin) {
+        db.ref('players').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const container = isAdmin ? document.getElementById('list-admin') : document.getElementById('list-public');
+            container.innerHTML = '';
+
+            for (let id in data) {
+                const p = data[id];
+                if (isAdmin) {
+                    container.innerHTML += `
+                        <div class="admin-card">
+                            <div class="card-info"><b>${p.n}</b> (ID: ${p.id_code})</div>
+                            <div>
+                                <button class="btn-edit" onclick="editPlayer('${id}')">ИЗМЕНИТЬ</button>
+                                <button class="btn-del" onclick="deletePlayer('${id}')">УДАЛИТЬ</button>
+                            </div>
+                        </div>`;
+                } else {
+                    container.innerHTML += `
+                        <div class="admin-card">
+                            <img src="${p.img}" style="width:60px; height:60px; margin-right:15px; border-radius:4px;">
+                            <div class="card-info">
+                                <b>${p.n}</b> [${p.id_code}]<br>
+                                <small>Срок: ${p.t} | Судимости: ${p.s} | Казни: ${p.k}</small>
+                            </div>
+                        </div>`;
+                }
+            }
         });
+    }
+
+    // Функция удаления
+    function deletePlayer(id) {
+        if (confirm("Удалить игрока из базы навсегда?")) {
+            db.ref('players/' + id).remove();
+        }
+    }
+
+    // Подготовка формы к редактированию
+    function editPlayer(id) {
+        db.ref('players/' + id).once('value').then((snap) => {
+            const p = snap.val();
+            document.getElementById('edit-id').value = id;
+            document.getElementById('n').value = p.n;
+            document.getElementById('id_code').value = p.id_code;
+            document.getElementById('img').value = p.img;
+            document.getElementById('s').value = p.s;
+            document.getElementById('k').value = p.k;
+            document.getElementById('t').value = p.t;
+            document.getElementById('v').value = p.v;
+            
+            document.getElementById('form-title').innerText = "РЕДАКТИРОВАНИЕ: " + p.n;
+            document.getElementById('save-btn').innerText = "ОБНОВИТЬ ДАННЫЕ";
+            window.scrollTo(0,0);
+        });
+    }
+
+    function resetForm() {
+        document.getElementById('edit-id').value = '';
+        document.getElementById('n').value = '';
+        document.getElementById('id_code').value = '';
+        document.getElementById('img').value = '';
+        document.getElementById('s').value = '';
+        document.getElementById('k').value = '';
+        document.getElementById('t').value = '';
+        document.getElementById('v').value = '';
+        document.getElementById('form-title').innerText = "ДОБАВИТЬ / ИЗМЕНИТЬ ИГРОКА";
+        document.getElementById('save-btn').innerText = "СОХРАНИТЬ В ОБЛАКО";
     }
 </script>
 </body>
