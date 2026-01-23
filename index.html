@@ -2,67 +2,85 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>База данных СНС</title>
+    <title>БАЗА ДАННЫХ СНС </title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; }
-        .box { max-width: 800px; margin: auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
+        .box { max-width: 850px; margin: auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
         h2 { text-align: center; color: #58a6ff; text-transform: uppercase; }
         input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
-        button { cursor: pointer; font-weight: bold; background: #238636; border: none; transition: 0.3s; }
+        button { cursor: pointer; font-weight: bold; background: #238636; border: none; }
         button:hover { background: #2ea043; }
+        .search-bar { border: 2px solid #58a6ff; margin-bottom: 20px; font-size: 1.1em; }
         .hidden { display: none; }
-        .admin-card { border: 1px solid #30363d; padding: 15px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: #21262d; }
-        .btn-edit { background: #8957e5; width: auto; padding: 5px 15px; margin: 0 5px; }
-        .btn-del { background: #da3633; width: auto; padding: 5px 15px; margin: 0 5px; }
+        .player-card { border: 1px solid #30363d; padding: 15px; margin-top: 10px; display: flex; align-items: center; background: #21262d; border-radius: 8px; position: relative; }
+        .player-card img { width: 90px; height: 90px; border-radius: 6px; object-fit: cover; margin-right: 20px; border: 2px solid #30363d; }
         .card-info { flex-grow: 1; }
+        .admin-btns { display: flex; flex-direction: column; gap: 5px; }
+        .btn-edit { background: #8957e5; padding: 5px 10px; width: auto; font-size: 12px; }
+        .btn-del { background: #da3633; padding: 5px 10px; width: auto; font-size: 12px; }
+        .file-label { display: block; margin-top: 10px; color: #8b949e; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>КОД ДОСТУПА</h2>
+    <h2>КОД</h2>
     
     <div id="login">
-        <input type="password" id="p_code" placeholder="Введите секретный код...">
-        <button onclick="login()">АВТОРИЗАЦИЯ</button>
+        <input type="password" id="p_code" placeholder="Введите код доступа...">
+        <button onclick="login()">ВОЙТИ</button>
     </div>
 
     <div id="view" class="hidden">
-        <button onclick="location.reload()" style="background: #444;">ВЫХОД</button>
+        <input type="text" class="search-bar" id="search-view" placeholder="🔍 Поиск по ID..." oninput="load(false)">
         <div id="list-public"></div>
+        <button onclick="location.reload()" style="background: #444; margin-top: 20px;">ВЫХОД</button>
     </div>
 
     <div id="add" class="hidden">
-        <h3 id="form-title">ДОБАВИТЬ / ИЗМЕНИТЬ ИГРОКА</h3>
-        <input type="hidden" id="edit-id"> <input type="text" id="n" placeholder="Никнейм">
-        <input type="text" id="id_code" placeholder="Идентификационный ID">
-        <input type="text" id="img" placeholder="Ссылка на фото (URL)">
-        <input type="number" id="s" placeholder="Судимости">
+        <h3 id="form-title">УПРАВЛЕНИЕ ЗАПИСЬЮ</h3>
+        <input type="hidden" id="edit-id">
+        <input type="text" id="n" placeholder="Никнейм">
+        <input type="text" id="id_code" placeholder="Идентификационный ID (например: 001)">
+        
+        <label class="file-label">Загрузить фото игрока:</label>
+        <input type="file" id="file-input" accept="image/*">
+        <input type="hidden" id="photo-data"> <input type="number" id="s" placeholder="Судимости">
         <input type="number" id="k" placeholder="Казни">
         <input type="text" id="t" placeholder="Срок">
-        <textarea id="v" placeholder="Список преступлений"></textarea>
-        <button id="save-btn" onclick="save()">СОХРАНИТЬ В ОБЛАКО</button>
-        <button onclick="resetForm()" style="background:#444">ОЧИСТИТЬ ФОРМУ</button>
-        <button onclick="location.reload()" style="background:#da3633; margin-top: 20px;">ВЫХОД</button>
+        <textarea id="v" placeholder="Нарушения"></textarea>
         
-        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #30363d;">
-        <h3>СПИСОК ДЛЯ РЕДАКТИРОВАНИЯ:</h3>
+        <button id="save-btn" onclick="save()">СОХРАНИТЬ</button>
+        <button onclick="resetForm()" style="background:#444">ОЧИСТИТЬ</button>
+        
+        <hr style="border: 1px solid #30363d; margin: 25px 0;">
+        <input type="text" class="search-bar" id="search-admin" placeholder="🔍 Поиск по ID для правки..." oninput="load(true)">
         <div id="list-admin"></div>
+        <button onclick="location.reload()" style="background: #da3633; margin-top: 20px;">ВЫЙТИ</button>
     </div>
 </div>
 
 <script>
-    // --- НАСТРОЙКИ (ВСТАВЬ СВОЙ КЛЮЧ) ---
     const firebaseConfig = {
-        apiKey: "ТВОЙ_API_KEY", 
+        apiKey: "ВСТАВЬ_СВОЙ_API_KEY", 
         databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
         projectId: "dfdf-ba19f",
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    // Обработка файла (конвертация в текст)
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            document.getElementById('photo-data').value = reader.result;
+        }
+        if (file) reader.readAsDataURL(file);
+    });
 
     function login() {
         const c = document.getElementById('p_code').value;
@@ -74,110 +92,86 @@
             document.getElementById('login').classList.add('hidden');
             document.getElementById('add').classList.remove('hidden');
             load(true);
-        } else {
-            alert("ОШИБКА ДОСТУПА");
-        }
+        } else { alert("ОТКАЗАНО"); }
     }
 
-    // Сохранение (и создание, и обновление)
     function save() {
         const key = document.getElementById('edit-id').value;
         const data = {
             n: document.getElementById('n').value,
             id_code: document.getElementById('id_code').value,
-            img: document.getElementById('img').value || 'https://via.placeholder.com/80',
+            img: document.getElementById('photo-data').value || 'https://via.placeholder.com/90',
             s: document.getElementById('s').value,
             k: document.getElementById('k').value,
             t: document.getElementById('t').value,
             v: document.getElementById('v').value
         };
 
-        if (key) {
-            // Если есть ключ, обновляем существующего
-            db.ref('players/' + key).set(data).then(() => {
-                alert("Данные обновлены!");
-                resetForm();
-            });
-        } else {
-            // Если ключа нет, создаем нового
-            db.ref('players').push(data).then(() => {
-                alert("Игрок добавлен!");
-                resetForm();
-            });
-        }
+        if (key) db.ref('players/' + key).set(data).then(() => { alert("Обновлено!"); resetForm(); });
+        else db.ref('players').push(data).then(() => { alert("Добавлено!"); resetForm(); });
     }
 
-    // Загрузка данных
     function load(isAdmin) {
+        const searchQuery = document.getElementById(isAdmin ? 'search-admin' : 'search-view').value.toLowerCase();
         db.ref('players').on('value', (snapshot) => {
             const data = snapshot.val();
-            const container = isAdmin ? document.getElementById('list-admin') : document.getElementById('list-public');
+            const container = document.getElementById(isAdmin ? 'list-admin' : 'list-public');
             container.innerHTML = '';
 
             for (let id in data) {
                 const p = data[id];
-                if (isAdmin) {
+                // Фильтр по ID
+                if (p.id_code.toLowerCase().includes(searchQuery)) {
                     container.innerHTML += `
-                        <div class="admin-card">
-                            <div class="card-info"><b>${p.n}</b> (ID: ${p.id_code})</div>
-                            <div>
-                                <button class="btn-edit" onclick="editPlayer('${id}')">ИЗМЕНИТЬ</button>
-                                <button class="btn-del" onclick="deletePlayer('${id}')">УДАЛИТЬ</button>
-                            </div>
-                        </div>`;
-                } else {
-                    container.innerHTML += `
-                        <div class="admin-card">
-                            <img src="${p.img}" style="width:60px; height:60px; margin-right:15px; border-radius:4px;">
+                        <div class="player-card">
+                            <img src="${p.img}">
                             <div class="card-info">
-                                <b>${p.n}</b> [${p.id_code}]<br>
-                                <small>Срок: ${p.t} | Судимости: ${p.s} | Казни: ${p.k}</small>
+                                <b>${p.n}</b> [ID: ${p.id_code}]<br>
+                                <small>Срок: ${p.t} | Судимости: ${p.s} | Казни: ${p.k}</small><br>
+                                <span style="font-size: 12px; color: #8b949e;">${p.v}</span>
                             </div>
+                            ${isAdmin ? `
+                                <div class="admin-btns">
+                                    <button class="btn-edit" onclick="editPlayer('${id}')">ПРАВКА</button>
+                                    <button class="btn-del" onclick="deletePlayer('${id}')">УДАЛИТЬ</button>
+                                </div>
+                            ` : ''}
                         </div>`;
                 }
             }
         });
     }
 
-    // Функция удаления
-    function deletePlayer(id) {
-        if (confirm("Удалить игрока из базы навсегда?")) {
-            db.ref('players/' + id).remove();
-        }
-    }
-
-    // Подготовка формы к редактированию
     function editPlayer(id) {
         db.ref('players/' + id).once('value').then((snap) => {
             const p = snap.val();
             document.getElementById('edit-id').value = id;
             document.getElementById('n').value = p.n;
             document.getElementById('id_code').value = p.id_code;
-            document.getElementById('img').value = p.img;
+            document.getElementById('photo-data').value = p.img;
             document.getElementById('s').value = p.s;
             document.getElementById('k').value = p.k;
             document.getElementById('t').value = p.t;
             document.getElementById('v').value = p.v;
-            
-            document.getElementById('form-title').innerText = "РЕДАКТИРОВАНИЕ: " + p.n;
-            document.getElementById('save-btn').innerText = "ОБНОВИТЬ ДАННЫЕ";
+            document.getElementById('form-title').innerText = "РЕДАКТИРОВАНИЕ";
             window.scrollTo(0,0);
         });
     }
 
+    function deletePlayer(id) { if (confirm("Удалить?")) db.ref('players/' + id).remove(); }
+    
     function resetForm() {
         document.getElementById('edit-id').value = '';
+        document.getElementById('photo-data').value = '';
+        document.getElementById('file-input').value = '';
         document.getElementById('n').value = '';
         document.getElementById('id_code').value = '';
-        document.getElementById('img').value = '';
         document.getElementById('s').value = '';
         document.getElementById('k').value = '';
         document.getElementById('t').value = '';
         document.getElementById('v').value = '';
-        document.getElementById('form-title').innerText = "ДОБАВИТЬ / ИЗМЕНИТЬ ИГРОКА";
-        document.getElementById('save-btn').innerText = "СОХРАНИТЬ В ОБЛАКО";
+        document.getElementById('form-title').innerText = "УПРАВЛЕНИЕ ЗАПИСЬЮ";
     }
 </script>
 </body>
 </html>
-
