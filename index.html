@@ -1,203 +1,77 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>БАЗА ДАННЫХ СНС</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <style>
-        :root {
-            --bg: #0d1117; --card: #161b22; --item: #21262d;
-            --accent: #58a6ff; --success: #238636; --danger: #da3633;
-            --warning: #ffa657; --text: #e6edf3;
-        }
+# =============================================================
+# СИСТЕМА СУНДУКА СМЕРТИ (GROUND CHECK & DOUBLE CHEST)
+# =============================================================
 
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; }
-        .box { max-width: 900px; margin: 10px auto; background: var(--card); border: 1px solid #30363d; padding: 20px; border-radius: 12px; }
+options:
+    chest_name: &6&lМогила &7- &e%player%
+    death_ban_time: 30 minutes
+
+on death:
+    if victim is a player:
+        set {_items::*} to all items in victim's inventory
+        clear drops
         
-        h2 { text-align: center; color: var(--accent); text-transform: uppercase; margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        # --- Поиск земли (чтобы не висел в воздухе) ---
+        set {_loc} to location of victim
+        while block at {_loc} is air:
+            subtract 1 from y-coordinate of {_loc}
+            if y-coordinate of {_loc} < -60: # Защита от бездны
+                set y-coordinate of {_loc} to y-coordinate of victim
+                exit loop
+        add 1 to y-coordinate of {_loc} # Ставим НА блок, а не В блок
         
-        input, textarea, button { 
-            width: 100%; padding: 12px; margin: 6px 0; border-radius: 8px; border: 1px solid #30363d; 
-            background: var(--bg); color: white; font-size: 16px; box-sizing: border-box; 
-        }
-
-        button { cursor: pointer; font-weight: bold; background: var(--success); border: none; }
-        button:hover { opacity: 0.9; }
-
-        .search-bar { border: 2px solid var(--accent) !important; position: sticky; top: 5px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-
-        .player-card { 
-            border: 1px solid #30363d; padding: 15px; margin-top: 15px; display: flex; 
-            gap: 20px; background: var(--item); border-radius: 10px; 
-        }
-
-        .player-card img { width: 110px; height: 110px; border-radius: 8px; object-fit: cover; border: 2px solid var(--accent); }
-
-        .card-info { flex: 1; min-width: 0; }
-        .card-info b { color: var(--accent); font-size: 1.4rem; }
-        .address-tag { color: #79c0ff; font-style: italic; font-size: 0.95rem; margin-bottom: 8px; display: block; }
+        # --- Установка сундука ---
+        set block at {_loc} to chest
+        set {_count} to size of {_items::*}
         
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0; font-size: 15px; }
-        .stats-grid div { background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; }
+        if {_count} > 27:
+            # Ставим вторую половинку рядом (на восток)
+            set {_loc2} to {_loc}
+            add 1 to x-coordinate of {_loc2}
+            set block at {_loc2} to chest
+            # Системное объединение в двойной сундук (зависит от версии, обычно майнкрафт сам их соединяет)
+        
+        # Заполняем вещами
+        wait 2 ticks # Пауза чтобы блоки успели обновиться
+        set {_chest_inv} to inventory of block at {_loc}
+        set name of {_chest_inv} to "{@chest_name}"
+        
+        loop {_items::*}:
+            add loop-value to {_chest_inv}
+            
+        send "&cВаши вещи в могиле на земле!" to victim
+        send "&7Координаты: &f%x-coordinate of {_loc}%, %y-coordinate of {_loc}%, %z-coordinate of {_loc}%" to victim
 
-        .crime-box { 
-            color: var(--warning); font-size: 14px; padding: 10px; 
-            background: rgba(255,166,87,0.08); border-left: 3px solid var(--warning); border-radius: 4px; 
-        }
+        # --- Бан ---
+        set {deathban::%victim's uuid%} to now
+        kick victim due to "&c&lВЫ ПОГИБЛИ!%newline%&7Ваши вещи в сундуке на земле."
 
-        .controls { 
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
-            margin-top: 15px; padding-top: 12px; border-top: 1px solid #30363d; 
-        }
+# --- Запрет входа ---
+on connect:
+    if {deathban::%player's uuid%} is set:
+        set {_waited} to difference between {deathban::%player's uuid%} and now
+        if {_waited} < {@death_ban_time}:
+            set {_rem} to {@death_ban_time}
+            remove {_waited} from {_rem}
+            reject connection due to "&c&lВЫ МЕРТВЫ! %newline%&7Осталось: &e%{_rem}%"
+        else:
+            delete {deathban::%player's uuid%}
 
-        .mini-btn { padding: 8px 2px; background: #30363d; color: var(--accent); border: 1px solid var(--accent); font-size: 12px; }
-        .btn-full { grid-column: span 2; font-size: 13px; padding: 10px; }
-        .btn-edit { background: #8957e5; }
-        .btn-del { background: var(--danger); }
+# --- Разбан ---
+command /live <offline player>:
+    permission: op
+    trigger:
+        delete {deathban::%arg-1's uuid%}
+        send "&aИгрок &e%arg-1% &aвоскрешен." to player
 
-        .hidden { display: none; }
-
-        @media (max-width: 650px) {
-            .player-card { flex-direction: column; align-items: center; text-align: center; }
-            .player-card img { width: 140px; height: 140px; }
-            .controls { grid-template-columns: repeat(2, 1fr); }
-            .btn-full { grid-column: span 2; }
-        }
-    </style>
-</head>
-<body>
-
-<div class="box">
-    <h2>БАЗА ДАННЫХ СНС</h2>
-    
-    <div id="login-screen">
-        <input type="password" id="p_code" placeholder="Введите код доступа">
-        <button onclick="auth()">ВОЙТИ В СИСТЕМУ</button>
-    </div>
-
-    <div id="main-ui" class="hidden">
-        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Быстрый поиск по ID..." oninput="renderData()">
-
-        <div id="admin-form" class="hidden">
-            <h4 style="margin: 10px 0; color: var(--success);">+ НОВАЯ КАРТОЧКА</h4>
-            <input type="text" id="reg-name" placeholder="Никнейм">
-            <input type="text" id="reg-id" placeholder="ID (например: 001)">
-            <input type="text" id="reg-address" placeholder="Место проживания (адрес)">
-            <input type="text" id="reg-term" placeholder="Текущий срок">
-            <input type="file" id="file-picker" accept="image/*" style="font-size:12px; border:none;">
-            <input type="hidden" id="img-base64">
-            <button onclick="createNew()">СОХРАНИТЬ В БАЗУ</button>
-            <hr style="border:0; border-top:1px solid #30363d; margin: 20px 0;">
-        </div>
-
-        <div id="player-list"></div>
-        <button onclick="location.reload()" style="background: #30363d; margin-top: 30px;">ЗАВЕРШИТЬ СЕАНС</button>
-    </div>
-</div>
-
-<script>
-    // --- ТВОИ НАСТРОЙКИ ---
-    const firebaseConfig = {
-        apiKey: "ТВОЙ_API_KEY", 
-        databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
-        projectId: "dfdf-ba19f",
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    let userRole = 'view';
-
-    document.getElementById('file-picker').addEventListener('change', function(e) {
-        const reader = new FileReader();
-        reader.onload = () => document.getElementById('img-base64').value = reader.result;
-        if (e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
-    });
-
-    function auth() {
-        const code = document.getElementById('p_code').value;
-        if (code === '5389') userRole = 'view';
-        else if (code === '3956') userRole = 'judge';
-        else if (code === '4583') { 
-            userRole = 'admin'; 
-            document.getElementById('admin-form').classList.remove('hidden');
-        } else { alert("ДОСТУП ЗАПРЕЩЕН"); return; }
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('main-ui').classList.remove('hidden');
-        renderData();
-    }
-
-    function renderData() {
-        const query = document.getElementById('search-input').value.toLowerCase();
-        database.ref('players').on('value', (snap) => {
-            const list = document.getElementById('player-list');
-            list.innerHTML = '';
-            const data = snap.val();
-            for (let key in data) {
-                const p = data[key];
-                if (p.id_code && p.id_code.toLowerCase().includes(query)) {
-                    let card = `
-                        <div class="player-card">
-                            <img src="${p.img || 'https://via.placeholder.com/120'}">
-                            <div class="card-info">
-                                <b>${p.n}</b> [ID: ${p.id_code}]
-                                <span class="address-tag">📍 Проживание: ${p.addr || 'Неизвестно'}</span>
-                                <div class="stats-grid">
-                                    <div>Срок: <b>${p.t || '—'}</b></div>
-                                    <div>Судимости: <b>${p.s || 0}</b></div>
-                                    <div>Казни: <b>${p.k || 0}</b></div>
-                                    <div>Тюрьма: <b>${p.p || 0} раз</b></div>
-                                </div>
-                                <div class="crime-box"><b>Дело:</b> ${p.v || 'Нет нарушений'}</div>
-                    `;
-                    if (userRole === 'judge' || userRole === 'admin') {
-                        card += `
-                            <div class="controls">
-                                <button class="mini-btn" onclick="modify('${key}','s',1)">S+</button>
-                                <button class="mini-btn" onclick="modify('${key}','s',-1)">S-</button>
-                                <button class="mini-btn" onclick="modify('${key}','k',1)">K+</button>
-                                <button class="mini-btn" onclick="modify('${key}','k',-1)">K-</button>
-                                <button class="mini-btn" onclick="modify('${key}','p',1)">P+</button>
-                                <button class="mini-btn" onclick="modify('${key}','p',-1)">P-</button>
-                                <button class="mini-btn" style="grid-column: span 2;" onclick="editField('${key}','addr','Введите новый адрес:')">🏠 АДРЕС</button>
-                                <button class="btn-full btn-edit" onclick="editField('${key}','v','Обновите список преступлений:')">ИЗМЕНИТЬ ДЕЛО</button>
-                                ${userRole === 'admin' ? `<button class="btn-full btn-del" onclick="removeP('${key}')">УДАЛИТЬ</button>` : ''}
-                            </div>
-                        `;
-                    }
-                    card += `</div></div>`;
-                    list.innerHTML += card;
-                }
-            }
-        });
-    }
-
-    function createNew() {
-        const n = document.getElementById('reg-name').value;
-        const id = document.getElementById('reg-id').value;
-        if(!n || !id) return alert("Заполните ник и ID!");
-        database.ref('players').push({
-            n: n, id_code: id, addr: document.getElementById('reg-address').value,
-            t: document.getElementById('reg-term').value,
-            img: document.getElementById('img-base64').value,
-            s: 0, k: 0, p: 0, v: "Чист"
-        });
-        alert("Гражданин успешно добавлен!");
-    }
-
-    function modify(key, field, val) {
-        database.ref('players/' + key + '/' + field).transaction(c => {
-            let n = (c || 0) + val; return n < 0 ? 0 : n;
-        });
-    }
-
-    function editField(key, field, msg) {
-        const text = prompt(msg);
-        if (text !== null) database.ref('players/' + key + '/' + field).set(text);
-    }
-
-    function removeP(key) { if(confirm("Удалить гражданина из базы СНС?")) database.ref('players/' + key).remove(); }
-</script>
-</body>
-</html>
+# --- Самоуничтожение пустого сундука ---
+on inventory close:
+    if name of event-inventory contains "&6&lМогила":
+        if event-inventory is empty:
+            set {_l} to location of event-block
+            # Удаляем обе части, если это был двойной сундук
+            loop blocks in radius 1 around event-block:
+                if loop-block is chest:
+                    set block at loop-block to air
+            set block at event-block to air
+            play sound "block.iron_door.open" with pitch 0.5 to player
