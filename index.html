@@ -2,61 +2,73 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>База данных СНС</title>
+    <title>БАЗА ДАННЫХ СНС</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; margin: 0; }
-        .box { max-width: 850px; margin: 20px auto; background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 12px; }
-        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; }
-        input, textarea, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
-        button { cursor: pointer; font-weight: bold; background: #238636; border: none; }
-        button:hover { background: #2ea043; }
-        .search-bar { border: 2px solid #58a6ff; font-size: 1.1em; margin-bottom: 20px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0d1117; color: #e6edf3; padding: 20px; margin: 0; }
+        .box { max-width: 900px; margin: 20px auto; background: #161b22; border: 1px solid #30363d; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        h2 { text-align: center; color: #58a6ff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; border-bottom: 2px solid #30363d; padding-bottom: 10px; }
+        input, textarea, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: white; font-size: 16px; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; background: #238636; border: none; transition: 0.2s; }
+        button:hover { background: #2ea043; transform: translateY(-1px); }
+        
+        .search-bar { border: 2px solid #58a6ff !important; background: #0d1117; font-size: 18px; }
         .hidden { display: none; }
-        .player-card { border: 1px solid #30363d; padding: 15px; margin-top: 15px; display: flex; gap: 20px; background: #21262d; border-radius: 8px; }
-        .player-card img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; border: 2px solid #58a6ff; }
+        
+        /* Карточка человека */
+        .player-card { border: 1px solid #30363d; padding: 20px; margin-top: 20px; display: flex; gap: 25px; background: #21262d; border-radius: 10px; align-items: flex-start; }
+        .player-card img { width: 120px; height: 120px; border-radius: 8px; object-fit: cover; border: 2px solid #58a6ff; background: #0d1117; }
         .card-info { flex: 1; }
-        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #30363d; }
-        .mini-btn { width: 50px; height: 35px; background: #30363d; color: #58a6ff; border: 1px solid #58a6ff; font-size: 12px; }
-        .btn-action { background: #8957e5; width: auto; padding: 5px 15px; font-size: 12px; }
-        .btn-del { background: #da3633; width: auto; padding: 5px 15px; font-size: 12px; }
-        .mode-tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; background: #30363d; margin-bottom: 10px; }
+        .card-info b { color: #58a6ff; font-size: 22px; }
+        .stats-row { margin: 10px 0; font-size: 16px; color: #c9d1d9; }
+        .stats-row span { margin-right: 15px; }
+        .crime-box { color: #ffa657; font-size: 15px; margin-top: 10px; padding: 10px; background: rgba(255,166,87,0.1); border-left: 3px solid #ffa657; border-radius: 4px; }
+
+        /* Кнопки управления */
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #30363d; }
+        .mini-btn { width: auto; min-width: 55px; height: 40px; background: #30363d; color: #58a6ff; border: 1px solid #58a6ff; font-size: 14px; padding: 0 10px; }
+        .mini-btn:hover { background: #58a6ff; color: #000; }
+        .btn-action { background: #8957e5; width: auto; padding: 8px 20px; font-size: 14px; }
+        .btn-del { background: #da3633; width: auto; padding: 8px 20px; font-size: 14px; }
+        .mode-tag { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; background: #30363d; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>КОД ДОСТУПА</h2>
+    <h2>БАЗА ДАННЫХ СНС</h2>
     
     <div id="login-screen">
-        <input type="password" id="p_code" placeholder="Код доступа...">
-        <button onclick="auth()">ВОЙТИ</button>
+        <input type="password" id="p_code" placeholder="Введите код доступа...">
+        <button onclick="auth()">АВТОРИЗАЦИЯ</button>
     </div>
 
     <div id="main-ui" class="hidden">
         <div id="current-mode" class="mode-tag">Режим: Просмотр</div>
-        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Поиск по ID..." oninput="renderData()">
+        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Найти человека по ID..." oninput="renderData()">
 
         <div id="admin-form" class="hidden">
-            <input type="text" id="reg-name" placeholder="Никнейм">
-            <input type="text" id="reg-id" placeholder="ID игрока">
-            <input type="text" id="reg-term" placeholder="Текущий срок">
-            <label style="font-size: 12px;">Фото профиля:</label>
+            <h3 style="color: #3fb950; margin-top: 0;">РЕГИСТРАЦИЯ ГРАЖДАНИНА</h3>
+            <input type="text" id="reg-name" placeholder="Никнейм/Имя">
+            <input type="text" id="reg-id" placeholder="ID игрока (например: 777)">
+            <input type="text" id="reg-term" placeholder="Текущий срок (если есть)">
+            <label style="font-size: 14px; display: block; margin-top: 10px;">Фотография:</label>
             <input type="file" id="file-picker" accept="image/*">
             <input type="hidden" id="img-base64">
-            <button onclick="createNew()">СОЗДАТЬ ДЕЛО</button>
-            <hr style="border-color: #30363d;">
+            <button onclick="createNew()">ЗАНЕСТИ В БАЗУ</button>
+            <hr style="border: 0; border-top: 1px solid #30363d; margin: 25px 0;">
         </div>
 
         <div id="player-list"></div>
-        <button onclick="location.reload()" style="background: #30363d; margin-top: 20px;">ВЫХОД</button>
+        <button onclick="location.reload()" style="background: #30363d; margin-top: 30px;">ВЫХОД ИЗ СИСТЕМЫ</button>
     </div>
 </div>
 
 <script>
+    // КОНФИГ (ВСТАВЬ СВОЙ КЛЮЧ)
     const firebaseConfig = {
-        apiKey: "ТВОЙ_API_KEY", 
+        apiKey: "ТВОЙ_КЛЮЧ", 
         databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
         projectId: "dfdf-ba19f",
     };
@@ -74,13 +86,13 @@
     function auth() {
         const code = document.getElementById('p_code').value;
         const tag = document.getElementById('current-mode');
-        if (code === '5389') { userRole = 'view'; }
-        else if (code === '3956') { userRole = 'judge'; tag.style.color = "#8957e5"; tag.innerText = "РЕЖИМ: СУДЬЯ"; }
+        if (code === '5389') { userRole = 'view'; tag.innerText = "РЕЖИМ: ПРОСМОТР"; }
+        else if (code === '3956') { userRole = 'judge'; tag.style.color = "#a371f7"; tag.innerText = "РЕЖИМ: ИЗМЕНЕНИЕ ДАННЫХ"; }
         else if (code === '4583') { 
             userRole = 'admin'; 
-            tag.style.color = "#f85149"; tag.innerText = "РЕЖИМ: АДМИН";
+            tag.style.color = "#f85149"; tag.innerText = "РЕЖИМ: АДМИНИСТРАТОР";
             document.getElementById('admin-form').classList.remove('hidden');
-        } else { alert("ОШИБКА"); return; }
+        } else { alert("НЕВЕРНЫЙ КОД"); return; }
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
         renderData();
@@ -94,24 +106,32 @@
             const data = snap.val();
             for (let key in data) {
                 const p = data[key];
-                if (p.id_code.toLowerCase().includes(query)) {
+                if (p.id_code && p.id_code.toLowerCase().includes(query)) {
                     let card = `
                         <div class="player-card">
-                            <img src="${p.img || 'https://via.placeholder.com/100'}">
+                            <img src="${p.img || 'https://via.placeholder.com/120'}">
                             <div class="card-info">
-                                <b>${p.n}</b> [ID: ${p.id_code}]<br>
-                                <small>Срок: ${p.t || '—'}</small><br>
-                                Судимостей: <b>${p.s || 0}</b> | Казней: <b>${p.k || 0}</b> | <b>Отсидел: ${p.p || 0} раз</b>
-                                <div style="color: #ffa657; font-size: 13px; margin-top:5px;">Дело: ${p.v || 'Чисто'}</div>
+                                <b>${p.n}</b> <span style="color:#8b949e; font-size:16px;">[ID: ${p.id_code}]</span><br>
+                                <div class="stats-row">
+                                    <span>Срок: <strong>${p.t || '—'}</strong></span>
+                                </div>
+                                <div class="stats-row">
+                                    <span>Судимостей: <strong>${p.s || 0}</strong></span>
+                                    <span>Казней: <strong>${p.k || 0}</strong></span>
+                                    <span>Отсидел: <strong>${p.p || 0} раз</strong></span>
+                                </div>
+                                <div class="crime-box"><strong>Дело:</strong> ${p.v || 'Информация отсутствует'}</div>
                     `;
                     if (userRole === 'judge' || userRole === 'admin') {
                         card += `
                             <div class="controls">
                                 <button class="mini-btn" onclick="modify('${key}','s',1)">S+</button>
+                                <button class="mini-btn" onclick="modify('${key}','s',-1)">S-</button>
                                 <button class="mini-btn" onclick="modify('${key}','k',1)">K+</button>
-                                <button class="mini-btn" onclick="modify('${key}','p',1)" title="Добавить отсидку">ТЮРЬМА+</button>
+                                <button class="mini-btn" onclick="modify('${key}','k',-1)">K-</button>
+                                <button class="mini-btn" onclick="modify('${key}','p',1)">ТЮРЬМА+</button>
                                 <button class="mini-btn" onclick="modify('${key}','p',-1)">P-</button>
-                                <button class="btn-action" onclick="editV('${key}','${p.v || ''}')">ИЗМЕНИТЬ ПРЕСТУПЛЕНИЯ</button>
+                                <button class="btn-action" onclick="editV('${key}','${p.v || ''}')">ИЗМЕНИТЬ ДЕЛО</button>
                                 ${userRole === 'admin' ? `<button class="btn-del" onclick="removeP('${key}')">УДАЛИТЬ</button>` : ''}
                             </div>
                         `;
@@ -126,25 +146,30 @@
     function createNew() {
         const n = document.getElementById('reg-name').value;
         const id = document.getElementById('reg-id').value;
-        if(!n || !id) return alert("Заполни поля!");
+        if(!n || !id) return alert("Введите имя и ID!");
         database.ref('players').push({
             n: n, id_code: id, t: document.getElementById('reg-term').value,
             img: document.getElementById('img-base64').value,
             s: 0, k: 0, p: 0, v: "Новое дело"
         });
-        alert("Добавлено!");
+        alert("Гражданин занесен в базу!");
+        document.getElementById('reg-name').value = '';
+        document.getElementById('reg-id').value = '';
     }
 
     function modify(key, field, val) {
-        database.ref('players/' + key + '/' + field).transaction(c => (c || 0) + val);
+        database.ref('players/' + key + '/' + field).transaction(c => {
+            let newVal = (c || 0) + val;
+            return newVal < 0 ? 0 : newVal; // Не дает уйти ниже нуля
+        });
     }
 
     function editV(key, old) {
-        const text = prompt("Опишите преступления:", old);
+        const text = prompt("Опишите нарушения/преступления:", old);
         if (text !== null) database.ref('players/' + key + '/v').set(text);
     }
 
-    function removeP(key) { if(confirm("Удалить?")) database.ref('players/' + key).remove(); }
+    function removeP(key) { if(confirm("Удалить карточку гражданина?")) database.ref('players/' + key).remove(); }
 </script>
 </body>
 </html>
