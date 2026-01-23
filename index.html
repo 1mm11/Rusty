@@ -8,116 +8,62 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         :root {
-            --bg-color: #0d1117;
-            --card-bg: #161b22;
-            --item-bg: #21262d;
-            --accent: #58a6ff;
-            --success: #238636;
-            --danger: #da3633;
-            --warning: #ffa657;
-            --text: #e6edf3;
+            --bg: #0d1117; --card: #161b22; --item: #21262d;
+            --accent: #58a6ff; --success: #238636; --danger: #da3633;
+            --warning: #ffa657; --text: #e6edf3;
         }
 
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
-            background-color: var(--bg-color); 
-            color: var(--text); 
-            padding: 10px; 
-            margin: 0; 
-        }
-
-        .box { 
-            max-width: 900px; 
-            margin: 10px auto; 
-            background: var(--card-bg); 
-            border: 1px solid #30363d; 
-            padding: 15px; 
-            border-radius: 12px; 
-        }
-
-        h2 { text-align: center; color: var(--accent); text-transform: uppercase; font-size: 1.5rem; }
-
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; }
+        .box { max-width: 900px; margin: 10px auto; background: var(--card); border: 1px solid #30363d; padding: 20px; border-radius: 12px; }
+        
+        h2 { text-align: center; color: var(--accent); text-transform: uppercase; margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        
         input, textarea, button { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 5px 0; 
-            border-radius: 8px; 
-            border: 1px solid #30363d; 
-            background: var(--bg-color); 
-            color: white; 
-            font-size: 16px; 
-            box-sizing: border-box; 
+            width: 100%; padding: 12px; margin: 6px 0; border-radius: 8px; border: 1px solid #30363d; 
+            background: var(--bg); color: white; font-size: 16px; box-sizing: border-box; 
         }
 
         button { cursor: pointer; font-weight: bold; background: var(--success); border: none; }
-        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
 
-        .search-bar { border: 2px solid var(--accent) !important; position: sticky; top: 10px; z-index: 100; }
+        .search-bar { border: 2px solid var(--accent) !important; position: sticky; top: 5px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
-        /* Адаптивная карточка */
         .player-card { 
-            border: 1px solid #30363d; 
-            padding: 15px; 
-            margin-top: 15px; 
-            display: flex; 
-            flex-direction: row; 
-            gap: 15px; 
-            background: var(--item-bg); 
-            border-radius: 10px; 
+            border: 1px solid #30363d; padding: 15px; margin-top: 15px; display: flex; 
+            gap: 20px; background: var(--item); border-radius: 10px; 
         }
 
-        .player-card img { 
-            width: 100px; height: 100px; 
-            border-radius: 8px; 
-            object-fit: cover; 
-            border: 2px solid var(--accent); 
-        }
+        .player-card img { width: 110px; height: 110px; border-radius: 8px; object-fit: cover; border: 2px solid var(--accent); }
 
         .card-info { flex: 1; min-width: 0; }
-        .card-info b { color: var(--accent); font-size: 1.3rem; display: block; overflow-wrap: break-word; }
+        .card-info b { color: var(--accent); font-size: 1.4rem; }
+        .address-tag { color: #79c0ff; font-style: italic; font-size: 0.95rem; margin-bottom: 8px; display: block; }
         
-        .stats-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
-            gap: 5px; 
-            margin: 10px 0; 
-            font-size: 14px; 
-        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0; font-size: 15px; }
+        .stats-grid div { background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; }
 
         .crime-box { 
-            color: var(--warning); 
-            font-size: 14px; 
-            padding: 8px; 
-            background: rgba(255,166,87,0.1); 
-            border-left: 3px solid var(--warning); 
-            border-radius: 4px;
-            word-wrap: break-word;
+            color: var(--warning); font-size: 14px; padding: 10px; 
+            background: rgba(255,166,87,0.08); border-left: 3px solid var(--warning); border-radius: 4px; 
         }
 
-        /* Кнопки управления адаптивные */
         .controls { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 8px; 
-            margin-top: 15px; 
-            padding-top: 10px; 
-            border-top: 1px solid #30363d; 
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
+            margin-top: 15px; padding-top: 12px; border-top: 1px solid #30363d; 
         }
 
-        .mini-btn { padding: 10px 5px; background: #30363d; color: var(--accent); border: 1px solid var(--accent); font-size: 12px; width: 100%; }
-        .btn-full { grid-column: span 3; font-size: 14px; padding: 10px; }
+        .mini-btn { padding: 8px 2px; background: #30363d; color: var(--accent); border: 1px solid var(--accent); font-size: 12px; }
+        .btn-full { grid-column: span 2; font-size: 13px; padding: 10px; }
         .btn-edit { background: #8957e5; }
         .btn-del { background: var(--danger); }
 
         .hidden { display: none; }
 
-        /* МОБИЛЬНАЯ ВЕРСИЯ */
-        @media (max-width: 600px) {
+        @media (max-width: 650px) {
             .player-card { flex-direction: column; align-items: center; text-align: center; }
-            .player-card img { width: 150px; height: 150px; }
+            .player-card img { width: 140px; height: 140px; }
             .controls { grid-template-columns: repeat(2, 1fr); }
             .btn-full { grid-column: span 2; }
-            h2 { font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -127,30 +73,34 @@
     <h2>БАЗА ДАННЫХ СНС</h2>
     
     <div id="login-screen">
-        <input type="password" id="p_code" placeholder="Код доступа">
-        <button onclick="auth()">ВХОД</button>
+        <input type="password" id="p_code" placeholder="Введите код доступа">
+        <button onclick="auth()">ВОЙТИ В СИСТЕМУ</button>
     </div>
 
     <div id="main-ui" class="hidden">
-        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Поиск по ID..." oninput="renderData()">
+        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Быстрый поиск по ID..." oninput="renderData()">
 
         <div id="admin-form" class="hidden">
+            <h4 style="margin: 10px 0; color: var(--success);">+ НОВАЯ КАРТОЧКА</h4>
             <input type="text" id="reg-name" placeholder="Никнейм">
-            <input type="text" id="reg-id" placeholder="ID игрока">
-            <input type="text" id="reg-term" placeholder="Срок">
-            <input type="file" id="file-picker" accept="image/*" style="font-size:12px;">
+            <input type="text" id="reg-id" placeholder="ID (например: 001)">
+            <input type="text" id="reg-address" placeholder="Место проживания (адрес)">
+            <input type="text" id="reg-term" placeholder="Текущий срок">
+            <input type="file" id="file-picker" accept="image/*" style="font-size:12px; border:none;">
             <input type="hidden" id="img-base64">
-            <button onclick="createNew()">СОЗДАТЬ КАРТОЧКУ</button>
+            <button onclick="createNew()">СОХРАНИТЬ В БАЗУ</button>
+            <hr style="border:0; border-top:1px solid #30363d; margin: 20px 0;">
         </div>
 
         <div id="player-list"></div>
-        <button onclick="location.reload()" style="background: #30363d; margin-top: 20px;">ВЫХОД</button>
+        <button onclick="location.reload()" style="background: #30363d; margin-top: 30px;">ЗАВЕРШИТЬ СЕАНС</button>
     </div>
 </div>
 
 <script>
+    // --- ТВОИ НАСТРОЙКИ ---
     const firebaseConfig = {
-        apiKey: "ТВОЙ_КЛЮЧ", 
+        apiKey: "ТВОЙ_API_KEY", 
         databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
         projectId: "dfdf-ba19f",
     };
@@ -167,12 +117,12 @@
 
     function auth() {
         const code = document.getElementById('p_code').value;
-        if (code === '5389') { userRole = 'view'; }
-        else if (code === '3956') { userRole = 'judge'; }
+        if (code === '5389') userRole = 'view';
+        else if (code === '3956') userRole = 'judge';
         else if (code === '4583') { 
             userRole = 'admin'; 
             document.getElementById('admin-form').classList.remove('hidden');
-        } else { alert("ОШИБКА"); return; }
+        } else { alert("ДОСТУП ЗАПРЕЩЕН"); return; }
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
         renderData();
@@ -192,13 +142,14 @@
                             <img src="${p.img || 'https://via.placeholder.com/120'}">
                             <div class="card-info">
                                 <b>${p.n}</b> [ID: ${p.id_code}]
+                                <span class="address-tag">📍 Проживание: ${p.addr || 'Неизвестно'}</span>
                                 <div class="stats-grid">
                                     <div>Срок: <b>${p.t || '—'}</b></div>
-                                    <div>Судимостей: <b>${p.s || 0}</b></div>
-                                    <div>Казней: <b>${p.k || 0}</b></div>
-                                    <div>Тюрьма: <b>${p.p || 0}</b></div>
+                                    <div>Судимости: <b>${p.s || 0}</b></div>
+                                    <div>Казни: <b>${p.k || 0}</b></div>
+                                    <div>Тюрьма: <b>${p.p || 0} раз</b></div>
                                 </div>
-                                <div class="crime-box">${p.v || 'Нет данных'}</div>
+                                <div class="crime-box"><b>Дело:</b> ${p.v || 'Нет нарушений'}</div>
                     `;
                     if (userRole === 'judge' || userRole === 'admin') {
                         card += `
@@ -209,7 +160,8 @@
                                 <button class="mini-btn" onclick="modify('${key}','k',-1)">K-</button>
                                 <button class="mini-btn" onclick="modify('${key}','p',1)">P+</button>
                                 <button class="mini-btn" onclick="modify('${key}','p',-1)">P-</button>
-                                <button class="btn-full btn-edit" onclick="editV('${key}','${p.v || ''}')">ИЗМЕНИТЬ ДЕЛО</button>
+                                <button class="mini-btn" style="grid-column: span 2;" onclick="editField('${key}','addr','Введите новый адрес:')">🏠 АДРЕС</button>
+                                <button class="btn-full btn-edit" onclick="editField('${key}','v','Обновите список преступлений:')">ИЗМЕНИТЬ ДЕЛО</button>
                                 ${userRole === 'admin' ? `<button class="btn-full btn-del" onclick="removeP('${key}')">УДАЛИТЬ</button>` : ''}
                             </div>
                         `;
@@ -224,13 +176,14 @@
     function createNew() {
         const n = document.getElementById('reg-name').value;
         const id = document.getElementById('reg-id').value;
-        if(!n || !id) return alert("Заполни поля!");
+        if(!n || !id) return alert("Заполните ник и ID!");
         database.ref('players').push({
-            n: n, id_code: id, t: document.getElementById('reg-term').value,
+            n: n, id_code: id, addr: document.getElementById('reg-address').value,
+            t: document.getElementById('reg-term').value,
             img: document.getElementById('img-base64').value,
-            s: 0, k: 0, p: 0, v: "Новое дело"
+            s: 0, k: 0, p: 0, v: "Чист"
         });
-        alert("ОК");
+        alert("Гражданин успешно добавлен!");
     }
 
     function modify(key, field, val) {
@@ -239,12 +192,12 @@
         });
     }
 
-    function editV(key, old) {
-        const text = prompt("Дело:", old);
-        if (text !== null) database.ref('players/' + key + '/v').set(text);
+    function editField(key, field, msg) {
+        const text = prompt(msg);
+        if (text !== null) database.ref('players/' + key + '/' + field).set(text);
     }
 
-    function removeP(key) { if(confirm("Удалить?")) database.ref('players/' + key).remove(); }
+    function removeP(key) { if(confirm("Удалить гражданина из базы СНС?")) database.ref('players/' + key).remove(); }
 </script>
 </body>
 </html>
