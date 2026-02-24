@@ -1,203 +1,63 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>БАЗА ДАННЫХ СНС</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <style>
-        :root {
-            --bg: #0d1117; --card: #161b22; --item: #21262d;
-            --accent: #58a6ff; --success: #238636; --danger: #da3633;
-            --warning: #ffa657; --text: #e6edf3;
-        }
-
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; }
-        .box { max-width: 900px; margin: 10px auto; background: var(--card); border: 1px solid #30363d; padding: 20px; border-radius: 12px; }
-        
-        h2 { text-align: center; color: var(--accent); text-transform: uppercase; margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
-        
-        input, textarea, button { 
-            width: 100%; padding: 12px; margin: 6px 0; border-radius: 8px; border: 1px solid #30363d; 
-            background: var(--bg); color: white; font-size: 16px; box-sizing: border-box; 
-        }
-
-        button { cursor: pointer; font-weight: bold; background: var(--success); border: none; }
-        button:hover { opacity: 0.9; }
-
-        .search-bar { border: 2px solid var(--accent) !important; position: sticky; top: 5px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-
-        .player-card { 
-            border: 1px solid #30363d; padding: 15px; margin-top: 15px; display: flex; 
-            gap: 20px; background: var(--item); border-radius: 10px; 
-        }
-
-        .player-card img { width: 110px; height: 110px; border-radius: 8px; object-fit: cover; border: 2px solid var(--accent); }
-
-        .card-info { flex: 1; min-width: 0; }
-        .card-info b { color: var(--accent); font-size: 1.4rem; }
-        .address-tag { color: #79c0ff; font-style: italic; font-size: 0.95rem; margin-bottom: 8px; display: block; }
-        
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0; font-size: 15px; }
-        .stats-grid div { background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 4px; }
-
-        .crime-box { 
-            color: var(--warning); font-size: 14px; padding: 10px; 
-            background: rgba(255,166,87,0.08); border-left: 3px solid var(--warning); border-radius: 4px; 
-        }
-
-        .controls { 
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
-            margin-top: 15px; padding-top: 12px; border-top: 1px solid #30363d; 
-        }
-
-        .mini-btn { padding: 8px 2px; background: #30363d; color: var(--accent); border: 1px solid var(--accent); font-size: 12px; }
-        .btn-full { grid-column: span 2; font-size: 13px; padding: 10px; }
-        .btn-edit { background: #8957e5; }
-        .btn-del { background: var(--danger); }
-
-        .hidden { display: none; }
-
-        @media (max-width: 650px) {
-            .player-card { flex-direction: column; align-items: center; text-align: center; }
-            .player-card img { width: 140px; height: 140px; }
-            .controls { grid-template-columns: repeat(2, 1fr); }
-            .btn-full { grid-column: span 2; }
-        }
-    </style>
+    <title>Fighter Database</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="light-theme">
+    <header>
+        <nav>
+            <div class="logo" id="lang-title">Список Бойцов</div>
+            <div class="controls">
+                <select id="lang-select">
+                    <option value="uk">UA</option>
+                    <option value="en">EN</option>
+                </select>
+                <button id="theme-toggle">🌙/☀️</button>
+                <button id="login-btn">Login</button>
+                <button id="admin-add-btn" class="hidden">Добавить бойца</button>
+            </div>
+        </nav>
+    </header>
 
-<div class="box">
-    <h2>БАЗА ДАННЫХ СНС</h2>
-    
-    <div id="login-screen">
-        <input type="password" id="p_code" placeholder="Введите код доступа">
-        <button onclick="auth()">ВОЙТИ В СИСТЕМУ</button>
-    </div>
+    <main id="fighters-list">
+        </main>
 
-    <div id="main-ui" class="hidden">
-        <input type="text" class="search-bar" id="search-input" placeholder="🔍 Быстрый поиск по ID..." oninput="renderData()">
-
-        <div id="admin-form" class="hidden">
-            <h4 style="margin: 10px 0; color: var(--success);">+ НОВАЯ КАРТОЧКА</h4>
-            <input type="text" id="reg-name" placeholder="Никнейм">
-            <input type="text" id="reg-id" placeholder="ID (например: 001)">
-            <input type="text" id="reg-address" placeholder="Место проживания (адрес)">
-            <input type="text" id="reg-term" placeholder="Текущий срок">
-            <input type="file" id="file-picker" accept="image/*" style="font-size:12px; border:none;">
-            <input type="hidden" id="img-base64">
-            <button onclick="createNew()">СОХРАНИТЬ В БАЗУ</button>
-            <hr style="border:0; border-top:1px solid #30363d; margin: 20px 0;">
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="lang-login-title">Вход для Админа</h2>
+            <input type="text" id="login-user" placeholder="Username">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button id="auth-submit">Войти</button>
+            <button class="close-modal">Отмена</button>
         </div>
-
-        <div id="player-list"></div>
-        <button onclick="location.reload()" style="background: #30363d; margin-top: 30px;">ЗАВЕРШИТЬ СЕАНС</button>
     </div>
-</div>
 
-<script>
-    // --- ТВОИ НАСТРОЙКИ ---
-    const firebaseConfig = {
-        apiKey: "ТВОЙ_API_KEY", 
-        databaseURL: "https://dfdf-ba19f-default-rtdb.firebaseio.com/",
-        projectId: "dfdf-ba19f",
-    };
+    <div id="fighter-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modal-title">Боец</h2>
+            <input type="text" id="f-name" placeholder="Имя">
+            <input type="number" id="f-year" placeholder="Год рождения">
+            <input type="number" id="f-wins" placeholder="Побед">
+            <input type="number" id="f-losses" placeholder="Поражений">
+            <input type="file" id="f-photo" accept="image/*">
+            
+            <div class="titles-section">
+                <h4>Титулы</h4>
+                <input type="text" id="t-text" placeholder="Текст титула">
+                <input type="color" id="t-color" value="#ffd700">
+                <input type="text" id="t-emoji" placeholder="Emoji (🏆)">
+                <button id="add-title-btn">Добавить титул в список</button>
+                <div id="temp-titles"></div>
+            </div>
 
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    let userRole = 'view';
+            <button id="save-fighter">Сохранить</button>
+            <button class="close-modal">Закрыть</button>
+        </div>
+    </div>
 
-    document.getElementById('file-picker').addEventListener('change', function(e) {
-        const reader = new FileReader();
-        reader.onload = () => document.getElementById('img-base64').value = reader.result;
-        if (e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
-    });
-
-    function auth() {
-        const code = document.getElementById('p_code').value;
-        if (code === '5389') userRole = 'view';
-        else if (code === '3956') userRole = 'judge';
-        else if (code === '4583') { 
-            userRole = 'admin'; 
-            document.getElementById('admin-form').classList.remove('hidden');
-        } else { alert("ДОСТУП ЗАПРЕЩЕН"); return; }
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('main-ui').classList.remove('hidden');
-        renderData();
-    }
-
-    function renderData() {
-        const query = document.getElementById('search-input').value.toLowerCase();
-        database.ref('players').on('value', (snap) => {
-            const list = document.getElementById('player-list');
-            list.innerHTML = '';
-            const data = snap.val();
-            for (let key in data) {
-                const p = data[key];
-                if (p.id_code && p.id_code.toLowerCase().includes(query)) {
-                    let card = `
-                        <div class="player-card">
-                            <img src="${p.img || 'https://via.placeholder.com/120'}">
-                            <div class="card-info">
-                                <b>${p.n}</b> [ID: ${p.id_code}]
-                                <span class="address-tag">📍 Проживание: ${p.addr || 'Неизвестно'}</span>
-                                <div class="stats-grid">
-                                    <div>Срок: <b>${p.t || '—'}</b></div>
-                                    <div>Судимости: <b>${p.s || 0}</b></div>
-                                    <div>Казни: <b>${p.k || 0}</b></div>
-                                    <div>Тюрьма: <b>${p.p || 0} раз</b></div>
-                                </div>
-                                <div class="crime-box"><b>Дело:</b> ${p.v || 'Нет нарушений'}</div>
-                    `;
-                    if (userRole === 'judge' || userRole === 'admin') {
-                        card += `
-                            <div class="controls">
-                                <button class="mini-btn" onclick="modify('${key}','s',1)">S+</button>
-                                <button class="mini-btn" onclick="modify('${key}','s',-1)">S-</button>
-                                <button class="mini-btn" onclick="modify('${key}','k',1)">K+</button>
-                                <button class="mini-btn" onclick="modify('${key}','k',-1)">K-</button>
-                                <button class="mini-btn" onclick="modify('${key}','p',1)">P+</button>
-                                <button class="mini-btn" onclick="modify('${key}','p',-1)">P-</button>
-                                <button class="mini-btn" style="grid-column: span 2;" onclick="editField('${key}','addr','Введите новый адрес:')">🏠 АДРЕС</button>
-                                <button class="btn-full btn-edit" onclick="editField('${key}','v','Обновите список преступлений:')">ИЗМЕНИТЬ ДЕЛО</button>
-                                ${userRole === 'admin' ? `<button class="btn-full btn-del" onclick="removeP('${key}')">УДАЛИТЬ</button>` : ''}
-                            </div>
-                        `;
-                    }
-                    card += `</div></div>`;
-                    list.innerHTML += card;
-                }
-            }
-        });
-    }
-
-    function createNew() {
-        const n = document.getElementById('reg-name').value;
-        const id = document.getElementById('reg-id').value;
-        if(!n || !id) return alert("Заполните ник и ID!");
-        database.ref('players').push({
-            n: n, id_code: id, addr: document.getElementById('reg-address').value,
-            t: document.getElementById('reg-term').value,
-            img: document.getElementById('img-base64').value,
-            s: 0, k: 0, p: 0, v: "Чист"
-        });
-        alert("Гражданин успешно добавлен!");
-    }
-
-    function modify(key, field, val) {
-        database.ref('players/' + key + '/' + field).transaction(c => {
-            let n = (c || 0) + val; return n < 0 ? 0 : n;
-        });
-    }
-
-    function editField(key, field, msg) {
-        const text = prompt(msg);
-        if (text !== null) database.ref('players/' + key + '/' + field).set(text);
-    }
-
-    function removeP(key) { if(confirm("Удалить гражданина из базы СНС?")) database.ref('players/' + key).remove(); }
-</script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
